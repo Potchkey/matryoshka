@@ -750,6 +750,35 @@ body.view-dashboard .back-to-dash{display:none}
 .text-toolbar .tt-hi-cyan{background:#cfeefa}
 .text-toolbar .tt-hi-green{background:#d4ecdc}
 .text-toolbar .tt-hi-clear{background:#fff;border:1px dashed #c9c4bc}
+/* ── MATRYOSHKA HOME VIEW ──────────────────────────────────────────────── */
+.matryoshka-canvas{padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-items:start;box-sizing:border-box;min-height:100%}
+.matryoshka-card{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(37,47,124,.04),0 4px 12px rgba(37,47,124,.05);transition:box-shadow .15s}
+.matryoshka-card:hover{box-shadow:0 1px 2px rgba(37,47,124,.06),0 6px 18px rgba(37,47,124,.09)}
+.matryoshka-card-head{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--border);background:rgba(37,47,124,.015)}
+.matryoshka-card.mc-collapsed .matryoshka-card-head{border-bottom:none}
+.matryoshka-card-title{font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.matryoshka-card-count{font-size:10.5px;color:var(--muted);background:rgba(37,47,124,.07);padding:1px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0}
+.matryoshka-card-open{font-size:11px;padding:3px 9px;flex-shrink:0;opacity:0;transition:opacity .12s}
+.matryoshka-card-head:hover .matryoshka-card-open{opacity:1}
+.matryoshka-card-collapse{background:transparent;border:1px solid transparent;color:var(--muted);font-size:13px;cursor:pointer;padding:0 4px;border-radius:4px;line-height:1;flex-shrink:0}
+.matryoshka-card-collapse:hover{color:var(--text);border-color:var(--border-strong)}
+.mc-hide-btn{background:transparent;border:1px solid transparent;color:var(--muted);font-size:12px;cursor:pointer;padding:0 3px;border-radius:3px;line-height:1;opacity:0;transition:opacity .12s;flex-shrink:0}
+.matryoshka-card-head:hover .mc-hide-btn{opacity:.55}
+.mc-hide-btn:hover{opacity:1!important;color:var(--lg-pink)}
+.matryoshka-card-body{overflow-y:auto;max-height:380px}
+.mc-task{display:flex;align-items:flex-start;gap:8px;padding:5px 13px 5px calc(13px + var(--mc-ind,0) * 18px);border-bottom:1px solid rgba(0,0,0,.03);font-size:12.5px;color:var(--text);line-height:1.4}
+.mc-task:last-child{border-bottom:none}
+.mc-task input[type=checkbox]{margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:var(--lg-blue)}
+.mc-task.mc-done .mc-task-text{text-decoration:line-through;color:var(--muted);opacity:.7}
+.mc-task-text{flex:1}
+.matryoshka-card-foot{padding:7px 13px;border-top:1px solid var(--border)}
+.matryoshka-card-foot button{font-size:11px;color:var(--muted);border:1px dashed var(--border-strong);background:transparent;padding:3px 8px}
+.matryoshka-card-foot button:hover{color:var(--text);border-style:solid;border-color:var(--lg-blue)}
+.matryoshka-add-row{padding:10px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.matryoshka-add-row span{font-size:11px;color:var(--muted);margin-right:4px}
+.matryoshka-empty{grid-column:1/-1;text-align:center;padding:80px 20px;color:var(--muted)}
+.matryoshka-empty h2{font-size:20px;font-weight:600;color:var(--text);margin:0 0 10px}
+.matryoshka-empty p{font-size:13px;margin:0 0 20px;line-height:1.55}
 </style>
 <!-- Supabase CDN removed in this fork — backend is Google Apps Script + Sheets. -->
 </head>
@@ -2651,6 +2680,7 @@ function defaultState(){
     userBoards: {},
     boardOrder: ['client','financing','bd','internal'],
     homeViewMode: 'free',
+    matryoshkaOpts: {},
     boardPos:  { internal:{x:20,y:20}, client:{x:600,y:20}, bd:{x:20,y:520}, financing:{x:600,y:520} },
     boardSize: { internal:{w:560,h:0}, client:{w:560,h:0}, bd:{w:560,h:0}, financing:{w:560,h:0} },
     titles: {
@@ -2709,7 +2739,7 @@ const DEFAULT_TILES = [
 ];
 
 // Fields that vary PER BOARD (swap in/out on board switch)
-const PER_BOARD_FIELDS = ['rows','titles','headers','colWidths','userColumns','colOrder','boardOrder','userBoards','activeTab','bgColor','brandImage','hiddenCols'];
+const PER_BOARD_FIELDS = ['rows','titles','headers','colWidths','userColumns','colOrder','boardOrder','userBoards','activeTab','bgColor','brandImage','hiddenCols','matryoshkaOpts'];
 
 function snapshotBoardFields(s){
   const out = {};
@@ -4524,6 +4554,7 @@ function ensureHomeModeToggle(){
     <div class="hmt-toggle">
       <button data-mode="free">Free</button>
       <button data-mode="stacked">Stacked</button>
+      <button data-mode="matryoshka">◉ Home</button>
     </div>
     ${mode === 'free' ? `
       <div class="hmt-zoom">
@@ -4616,8 +4647,144 @@ function autoFitBoards(){
   save(); render();
 }
 
+function renderMatryoshkaHome(canvas){
+  const opts = state.matryoshkaOpts || {};
+  const allTabs = state.boardOrder || [];
+
+  // Default: all tabs are visible unless explicitly hidden
+  const visibleTabs = allTabs.filter(k => !(opts[k] && opts[k].on === false));
+  const hiddenTabs  = allTabs.filter(k =>  (opts[k] && opts[k].on === false));
+
+  if(visibleTabs.length === 0){
+    canvas.innerHTML = `
+      <div class="matryoshka-empty">
+        <h2>Your home view is empty</h2>
+        <p>All lists are currently hidden. Use the buttons below to bring them back.</p>
+      </div>`;
+  } else {
+    visibleTabs.forEach(tabKey => {
+      const sch = SCHEMAS[tabKey];
+      if(!sch) return;
+      const opt = opts[tabKey] || {};
+      const collapsed = !!opt.collapsed;
+      const allRows = state.rows[tabKey] || [];
+      const rows = visibleRowsAfterCollapse(allRows);
+      const doneCount = rows.filter(r => r.dateResolved || r.status === 'Done').length;
+
+      const card = document.createElement('div');
+      card.className = 'matryoshka-card' + (collapsed ? ' mc-collapsed' : '');
+      card.dataset.tab = tabKey;
+
+      // Header
+      const head = document.createElement('div');
+      head.className = 'matryoshka-card-head';
+      const collapseLabel = collapsed ? '▸' : '▾';
+      head.innerHTML = `
+        <span class="tab-icon ${sch.color || ''}"></span>
+        <span class="matryoshka-card-title">${escapeHtml(state.titles[tabKey] || sch.label)}</span>
+        <span class="matryoshka-card-count">${doneCount}/${rows.length}</span>
+        <button class="matryoshka-card-collapse" title="${collapsed ? 'Expand' : 'Collapse'}">${collapseLabel}</button>
+        <button class="matryoshka-card-open btn-primary">Open →</button>
+        <button class="mc-hide-btn" title="Hide from home">✕</button>
+      `;
+      head.querySelector('.matryoshka-card-open').addEventListener('click', e => {
+        e.stopPropagation();
+        state.activeTab = tabKey; save(); render();
+      });
+      head.querySelector('.matryoshka-card-collapse').addEventListener('click', e => {
+        e.stopPropagation();
+        state.matryoshkaOpts = state.matryoshkaOpts || {};
+        state.matryoshkaOpts[tabKey] = { ...(opts[tabKey] || {}), collapsed: !collapsed };
+        save(); renderMatryoshkaHome(canvas);
+      });
+      head.querySelector('.mc-hide-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        if(!confirm('Hide "' + (state.titles[tabKey] || tabKey) + '" from the home view?')) return;
+        state.matryoshkaOpts = state.matryoshkaOpts || {};
+        state.matryoshkaOpts[tabKey] = { ...(opts[tabKey] || {}), on: false };
+        save(); renderMatryoshkaHome(canvas);
+      });
+      card.appendChild(head);
+
+      if(!collapsed){
+        const body = document.createElement('div');
+        body.className = 'matryoshka-card-body';
+        if(rows.length === 0){
+          body.innerHTML = `<div style="padding:12px 14px;font-size:12.5px;color:var(--muted)">No tasks yet.</div>`;
+        } else {
+          rows.forEach(row => {
+            const isDone = !!(row.dateResolved || row.status === 'Done');
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'mc-task' + (isDone ? ' mc-done' : '');
+            taskDiv.style.setProperty('--mc-ind', Math.max(0, row.indent | 0));
+            const rawTask = row.task || '';
+            const taskHtml = /<\/?[a-z][^>]*>/i.test(rawTask)
+              ? sanitizeRowHtml(rawTask) : escapeHtml(rawTask);
+            taskDiv.innerHTML = `<input type="checkbox" ${isDone?'checked':''}><span class="mc-task-text">${taskHtml}</span>`;
+            taskDiv.querySelector('input').addEventListener('change', e => {
+              const checked = e.target.checked;
+              const r = (state.rows[tabKey] || []).find(x => x.id === row.id);
+              if(r){
+                r.status = checked ? 'Done' : 'Not started';
+                r.dateResolved = checked ? todayISO() : '';
+                save();
+                // update count badge without full re-render
+                const newDone = (state.rows[tabKey] || []).filter(x => x.dateResolved || x.status === 'Done').length;
+                const badge = card.querySelector('.matryoshka-card-count');
+                if(badge) badge.textContent = newDone + '/' + rows.length;
+              }
+            });
+            body.appendChild(taskDiv);
+          });
+        }
+        card.appendChild(body);
+
+        const foot = document.createElement('div');
+        foot.className = 'matryoshka-card-foot';
+        foot.innerHTML = `<button>+ Add task</button>`;
+        foot.querySelector('button').addEventListener('click', () => {
+          state.activeTab = tabKey; save(); render();
+          setTimeout(() => addRow(), 80);
+        });
+        card.appendChild(foot);
+      }
+      canvas.appendChild(card);
+    });
+  }
+
+  // Restore-strip for hidden lists
+  if(hiddenTabs.length > 0){
+    const strip = document.createElement('div');
+    strip.style.cssText = 'grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 8px';
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'font-size:11px;color:var(--muted);align-self:center';
+    lbl.textContent = 'Hidden:';
+    strip.appendChild(lbl);
+    hiddenTabs.forEach(k => {
+      const btn = document.createElement('button');
+      btn.textContent = '+ ' + escapeHtml(state.titles[k] || k);
+      btn.style.cssText = 'font-size:11px;padding:3px 9px;color:var(--muted);border:1px dashed var(--border-strong);background:transparent;border-radius:6px;cursor:pointer';
+      btn.addEventListener('click', () => {
+        state.matryoshkaOpts = state.matryoshkaOpts || {};
+        state.matryoshkaOpts[k] = { ...(state.matryoshkaOpts[k] || {}), on: true };
+        save(); renderMatryoshkaHome(canvas);
+      });
+      strip.appendChild(btn);
+    });
+    canvas.appendChild(strip);
+  }
+}
+
 function renderHome(host){
-  const mode = state.homeViewMode === 'stacked' ? 'stacked' : 'free';
+  const mode = state.homeViewMode === 'stacked' ? 'stacked' : state.homeViewMode === 'matryoshka' ? 'matryoshka' : 'free';
+
+  if(mode === 'matryoshka'){
+    host.innerHTML = `<div class="matryoshka-canvas" id="boardCanvas"></div>`;
+    ensureHomeModeToggle();
+    renderMatryoshkaHome(document.getElementById('boardCanvas'));
+    return;
+  }
+
   const zoom = Math.max(0.4, Math.min(2, +state.boardZoom || 1));
   // In free mode at non-100% zoom, scale the whole canvas. Compensate width so the
   // scaled content still fills the wrapper horizontally (otherwise it leaves whitespace).
