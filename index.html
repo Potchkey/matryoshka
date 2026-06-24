@@ -2973,6 +2973,13 @@ function subscribeRealtime(){
 let _sharedWithMe = {};    // key = 'boardKey:ownerId' → { boardKey, ownerId, data, updatedAt }
 let _mySharedKeys = new Set(); // board keys I own that have at least one accepted invite
 
+function _genToken() {
+  // PostgreSQL encode(...,'base64url') is not valid — generate tokens in JS instead.
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
 function _sbKey(boardKey, ownerId){ return `${boardKey}:${ownerId}`; }
 
 function _extractBoardData(tabKey) {
@@ -3058,12 +3065,13 @@ async function createBoardInvite() {
     const { data: existing } = await supa.from('board_invites')
       .select('token').eq('board_key', '__board__').eq('owner_id', userId).limit(1).single();
     if (existing?.token) return `${location.origin}${location.pathname}?invite=${existing.token}`;
+    const token = _genToken();
     const { data, error } = await supa.from('board_invites')
-      .insert({ board_key: '__board__', owner_id: userId })
+      .insert({ board_key: '__board__', owner_id: userId, token })
       .select('token').single();
-    if (error || !data) { console.warn('createBoardInvite error', error); return null; }
+    if (error || !data) { console.warn('createBoardInvite error', error); return { error }; }
     return `${location.origin}${location.pathname}?invite=${data.token}`;
-  } catch(e) { console.warn('createBoardInvite threw', e); return null; }
+  } catch(e) { console.warn('createBoardInvite threw', e); return { error: e }; }
 }
 
 async function openBoardShareModal() {
@@ -3078,11 +3086,13 @@ async function openBoardShareModal() {
   collabList.innerHTML = '<div class="lg-share-loading">Loading…</div>';
   modal.classList.add('visible');
 
-  const link = await createBoardInvite();
+  const result = await createBoardInvite();
+  const link = typeof result === 'string' ? result : null;
   if (link) {
     linkArea.innerHTML = `<input id="lgShareLinkInput" readonly value="${escapeHtml(link)}" onclick="this.select()"><button onclick="copyShareLink()">Copy</button>`;
   } else {
-    linkArea.textContent = 'Could not generate link. Make sure you are signed in.';
+    const errMsg = result?.error?.message || result?.error?.code || 'unknown error';
+    linkArea.textContent = `Could not generate link: ${errMsg}`;
   }
 
   const userId = window.__lgAuth.user?.id;
@@ -3114,8 +3124,9 @@ async function createInvite(boardKey) {
       data: _extractBoardData(boardKey),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'board_key,owner_id' });
+    const token = _genToken();
     const { data, error } = await supa.from('board_invites')
-      .insert({ board_key: boardKey, owner_id: userId })
+      .insert({ board_key: boardKey, owner_id: userId, token })
       .select('token').single();
     if (error || !data) { console.warn('createInvite error', error); return null; }
     _mySharedKeys.add(boardKey);
