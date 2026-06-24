@@ -754,10 +754,17 @@ body.view-dashboard .back-to-dash{display:none}
 .text-toolbar .tt-hi-green{background:#d4ecdc}
 .text-toolbar .tt-hi-clear{background:#fff;border:1px dashed #c9c4bc}
 /* ── MATRYOSHKA HOME VIEW ──────────────────────────────────────────────── */
-.matryoshka-canvas{padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-items:start;box-sizing:border-box;min-height:100%}
+.matryoshka-canvas{box-sizing:border-box;min-height:100%}
+.matryoshka-canvas.mhome-grid{padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-items:start}
+.matryoshka-canvas.mhome-free{display:block;position:relative;padding:0;min-height:600px}
 .matryoshka-card{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(37,47,124,.04),0 4px 12px rgba(37,47,124,.05);transition:box-shadow .15s}
+.mhome-free .matryoshka-card{position:absolute;overflow:visible;min-width:280px;min-height:80px;display:flex;flex-direction:column}
+.mhome-free .matryoshka-card-body{flex:1;overflow-y:auto}
 .matryoshka-card:hover{box-shadow:0 1px 2px rgba(37,47,124,.06),0 6px 18px rgba(37,47,124,.09)}
+.matryoshka-card.mhome-dragging{z-index:50!important;opacity:.97;box-shadow:0 14px 36px rgba(37,47,124,.22)!important;cursor:grabbing}
 .matryoshka-card-head{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--border);background:rgba(37,47,124,.015)}
+.mhome-free .matryoshka-card-head{cursor:grab}
+.mhome-free .matryoshka-card.mhome-dragging .matryoshka-card-head{cursor:grabbing}
 .matryoshka-card.mc-collapsed .matryoshka-card-head{border-bottom:none}
 .matryoshka-card-title{font-size:13px;font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .matryoshka-card-count{font-size:10.5px;color:var(--muted);background:rgba(37,47,124,.07);padding:1px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0}
@@ -780,8 +787,14 @@ body.view-dashboard .back-to-dash{display:none}
 .matryoshka-add-row{padding:10px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .matryoshka-add-row span{font-size:11px;color:var(--muted);margin-right:4px}
 .matryoshka-empty{grid-column:1/-1;text-align:center;padding:80px 20px;color:var(--muted)}
+.mhome-free .matryoshka-empty{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px}
 .matryoshka-empty h2{font-size:20px;font-weight:600;color:var(--text);margin:0 0 10px}
 .matryoshka-empty p{font-size:13px;margin:0 0 20px;line-height:1.55}
+.mhome-unpinned-strip{position:absolute;bottom:16px;left:16px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mhome-unpinned-strip.mhome-grid-strip{position:static;padding:4px 0 8px;grid-column:1/-1}
+.mhome-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 50%,var(--lg-cyan) 50%,var(--lg-cyan) 60%,transparent 60%,transparent 70%,var(--lg-cyan) 70%,var(--lg-cyan) 80%,transparent 80%);opacity:0;border-bottom-right-radius:10px;transition:opacity .15s}
+.matryoshka-card:hover .mhome-resize{opacity:.4}
+.mhome-resize:hover{opacity:1}
 </style>
 <!-- Supabase CDN removed in this fork — backend is Google Apps Script + Sheets. -->
 </head>
@@ -2686,6 +2699,8 @@ function defaultState(){
     homeViewMode: 'free',
     matryoshkaHome: {},
     viewingMatryoshkaHome: false,
+    matryoshkaHomeMode: 'free',
+    matryoshkaHomeZoom: 1,
     boardPos:  { internal:{x:20,y:20}, client:{x:600,y:20}, bd:{x:20,y:520}, financing:{x:600,y:520} },
     boardSize: { internal:{w:560,h:0}, client:{w:560,h:0}, bd:{w:560,h:0}, financing:{w:560,h:0} },
     titles: {
@@ -2784,6 +2799,8 @@ function runStateMigrations(s){
   if(!s.activeBoardId || !s.boards[s.activeBoardId]) s.activeBoardId = 'main';
   if(!s.matryoshkaHome) s.matryoshkaHome = {};
   if(s.viewingMatryoshkaHome === undefined) s.viewingMatryoshkaHome = false;
+  if(!s.matryoshkaHomeMode) s.matryoshkaHomeMode = 'free';
+  if(!s.matryoshkaHomeZoom) s.matryoshkaHomeZoom = 1;
   s.titles = s.titles || {};
   if(!s.titles.home) s.titles.home = 'Home';
   if(!s.activeTab) s.activeTab = 'home';
@@ -4345,10 +4362,16 @@ function renderSection(){
       homeHost.id = 'homeHost';
       document.querySelector('.main').appendChild(homeHost);
     }
-    homeHost.innerHTML = `<div class="matryoshka-canvas" id="matryoshkaHomeCanvas"></div>`;
+    const mode = state.matryoshkaHomeMode || 'free';
+    const zoom = Math.max(0.4, Math.min(2, +state.matryoshkaHomeZoom || 1));
+    const zoomStyle = (mode === 'free' && zoom !== 1)
+      ? ` style="transform:scale(${zoom});transform-origin:top left;width:${(100/zoom).toFixed(2)}%"`
+      : '';
+    homeHost.innerHTML = `<div class="matryoshka-canvas mhome-${mode}" id="matryoshkaHomeCanvas"${zoomStyle}></div>`;
     const toggle = document.getElementById('homeModeToggle');
     if(toggle) toggle.remove();
     renderMatryoshkaHome(document.getElementById('matryoshkaHomeCanvas'));
+    ensureMatryoshkaHomeToolbar();
     return;
   }
 
@@ -4700,16 +4723,30 @@ function autoFitBoards(){
 function renderMatryoshkaHome(canvas){
   canvas.innerHTML = '';
   const homeOpts = state.matryoshkaHome || {};
+  const mode = canvas.classList.contains('mhome-free') ? 'free' : 'grid';
   const allBoardIds = Object.keys(state.boards || {});
   const pinnedIds   = allBoardIds.filter(id => homeOpts[id] && homeOpts[id].pinned);
   const unpinnedIds = allBoardIds.filter(id => !(homeOpts[id] && homeOpts[id].pinned));
 
   if(pinnedIds.length === 0){
-    canvas.innerHTML = `
-      <div class="matryoshka-empty">
-        <h2>Your Matryoshka Home is empty</h2>
-        <p>Pin boards here for a cross-board overview. Use the board menu (▾ next to a board name) and choose "Pin to Home".</p>
-      </div>`;
+    const empty = document.createElement('div');
+    empty.className = 'matryoshka-empty';
+    empty.innerHTML = `<h2>Your Matryoshka Home is empty</h2><p>Pin boards here for a cross-board overview. Use the board menu (▾ next to a board name) and choose "Pin to Home".</p>`;
+    canvas.appendChild(empty);
+  }
+
+  // Auto-place new free-mode cards that have no stored position
+  if(mode === 'free'){
+    const cw = canvas.clientWidth || (window.innerWidth - 140);
+    const gap = 16, cardW = 340;
+    const cols = Math.max(1, Math.floor((cw + gap) / (cardW + gap)));
+    pinnedIds.forEach((id, i) => {
+      const opts = homeOpts[id] || {};
+      if(!opts.pos){
+        const col = i % cols, row = Math.floor(i / cols);
+        state.matryoshkaHome[id] = { ...opts, pos: { x: gap + col * (cardW + gap), y: gap + row * (420 + gap) } };
+      }
+    });
   }
 
   pinnedIds.forEach(id => {
@@ -4718,13 +4755,11 @@ function renderMatryoshkaHome(canvas){
     const opts = homeOpts[id] || {};
     const collapsed = !!opts.collapsed;
 
-    // For the active board, read live state; for others, use their snapshot.
     const isActive = id === state.activeBoardId;
-    const bRows    = isActive ? state.rows        : (board.data && board.data.rows     || {});
-    const bOrder   = isActive ? state.boardOrder  : (board.data && board.data.boardOrder || []);
-    const bTitles  = isActive ? state.titles      : (board.data && board.data.titles   || {});
+    const bRows   = isActive ? state.rows       : (board.data && board.data.rows       || {});
+    const bOrder  = isActive ? state.boardOrder : (board.data && board.data.boardOrder || []);
+    const bTitles = isActive ? state.titles     : (board.data && board.data.titles     || {});
 
-    // Aggregate task counts across all lists
     const allTaskRows = bOrder.flatMap(k => bRows[k] || []);
     const doneCount   = allTaskRows.filter(r => r.dateResolved || r.status === 'Done').length;
     const totalCount  = allTaskRows.length;
@@ -4732,6 +4767,15 @@ function renderMatryoshkaHome(canvas){
     const card = document.createElement('div');
     card.className = 'matryoshka-card' + (collapsed ? ' mc-collapsed' : '');
     card.dataset.boardId = id;
+
+    if(mode === 'free'){
+      const pos = opts.pos || { x: 16, y: 16 };
+      const sz  = opts.size || {};
+      card.style.left = pos.x + 'px';
+      card.style.top  = pos.y + 'px';
+      if(sz.w) card.style.width  = sz.w + 'px';
+      if(sz.h) card.style.height = sz.h + 'px';
+    }
 
     const head = document.createElement('div');
     head.className = 'matryoshka-card-head';
@@ -4741,7 +4785,7 @@ function renderMatryoshkaHome(canvas){
       <span class="matryoshka-card-count">${doneCount}/${totalCount}</span>
       <button class="matryoshka-card-collapse" title="${collapsed ? 'Expand' : 'Collapse'}">${collapseLabel}</button>
       <button class="matryoshka-card-open btn-primary">Open →</button>
-      <button class="mc-hide-btn" title="Unpin from Matryoshka Home">✕</button>
+      <button class="mc-hide-btn" title="Unpin from Home">✕</button>
     `;
     head.querySelector('.matryoshka-card-open').addEventListener('click', e => {
       e.stopPropagation();
@@ -4750,16 +4794,14 @@ function renderMatryoshkaHome(canvas){
     });
     head.querySelector('.matryoshka-card-collapse').addEventListener('click', e => {
       e.stopPropagation();
-      state.matryoshkaHome = state.matryoshkaHome || {};
       state.matryoshkaHome[id] = { ...opts, collapsed: !collapsed };
-      save(); renderMatryoshkaHome(canvas);
+      save(); render();
     });
     head.querySelector('.mc-hide-btn').addEventListener('click', e => {
       e.stopPropagation();
       if(!confirm('Unpin "' + escapeHtml(board.title || id) + '" from Matryoshka Home?')) return;
-      state.matryoshkaHome = state.matryoshkaHome || {};
       state.matryoshkaHome[id] = { ...opts, pinned: false };
-      save(); renderMatryoshkaHome(canvas);
+      save(); render();
     });
     card.appendChild(head);
 
@@ -4791,14 +4833,44 @@ function renderMatryoshkaHome(canvas){
         });
       }
       card.appendChild(body);
+
+      // Resize handle (free mode only)
+      if(mode === 'free'){
+        const resize = document.createElement('div');
+        resize.className = 'mhome-resize';
+        resize.title = 'Drag to resize';
+        resize.addEventListener('mousedown', e => {
+          e.preventDefault(); e.stopPropagation();
+          const startX = e.clientX, startY = e.clientY;
+          const startRect = card.getBoundingClientRect();
+          const z = Math.max(0.4, Math.min(2, +state.matryoshkaHomeZoom || 1));
+          const startW = startRect.width / z, startH = startRect.height / z;
+          const onMove = ev => {
+            card.style.width  = Math.max(280, Math.round(startW + (ev.clientX - startX) / z)) + 'px';
+            card.style.height = Math.max(120, Math.round(startH + (ev.clientY - startY) / z)) + 'px';
+          };
+          const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            const w = parseInt(card.style.width,  10) || startW;
+            const h = parseInt(card.style.height, 10) || startH;
+            state.matryoshkaHome[id] = { ...(state.matryoshkaHome[id] || {}), size: { w, h } };
+            save();
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+        card.appendChild(resize);
+      }
     }
     canvas.appendChild(card);
   });
 
-  // Strip of unpinned boards to add
+  // Unpinned boards strip
   if(unpinnedIds.length > 0){
     const strip = document.createElement('div');
-    strip.style.cssText = 'grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;padding:8px 0;align-items:center';
+    const stripClass = mode === 'free' ? 'mhome-unpinned-strip' : 'mhome-unpinned-strip mhome-grid-strip';
+    strip.className = stripClass;
     const lbl = document.createElement('span');
     lbl.style.cssText = 'font-size:11px;color:var(--muted);margin-right:4px';
     lbl.textContent = pinnedIds.length === 0 ? 'Add a board:' : 'Other boards:';
@@ -4812,12 +4884,136 @@ function renderMatryoshkaHome(canvas){
       btn.addEventListener('click', () => {
         state.matryoshkaHome = state.matryoshkaHome || {};
         state.matryoshkaHome[id] = { ...(state.matryoshkaHome[id] || {}), pinned: true };
-        save(); renderMatryoshkaHome(canvas);
+        save(); render();
       });
       strip.appendChild(btn);
     });
     canvas.appendChild(strip);
   }
+}
+
+// ── Matryoshka Home drag system ─────────────────────────────────────────
+let mhomeDragState = null, mhomeDragJustEnded = false, mhomeTopZ = 200;
+
+document.addEventListener('mousedown', e => {
+  const card = e.target.closest('.mhome-free .matryoshka-card');
+  if(!card) return;
+  // head is the drag handle; block if clicking a button or the resize corner
+  if(!e.target.closest('.matryoshka-card-head')) return;
+  if(e.target.closest('button')) return;
+  e.preventDefault();
+  mhomeTopZ++;
+  card.style.zIndex = mhomeTopZ;
+  const canvas = card.closest('.mhome-free');
+  const cardRect = card.getBoundingClientRect();
+  const z = Math.max(0.4, Math.min(2, +state.matryoshkaHomeZoom || 1));
+  mhomeDragState = {
+    boardId: card.dataset.boardId, card, canvas,
+    offsetX: (e.clientX - cardRect.left) / z,
+    offsetY: (e.clientY - cardRect.top)  / z,
+    z,
+  };
+  card.classList.add('mhome-dragging');
+});
+
+document.addEventListener('mousemove', e => {
+  if(!mhomeDragState) return;
+  const cRect = mhomeDragState.canvas.getBoundingClientRect();
+  const z = mhomeDragState.z;
+  let x = (e.clientX - cRect.left) / z - mhomeDragState.offsetX + mhomeDragState.canvas.scrollLeft;
+  let y = (e.clientY - cRect.top)  / z - mhomeDragState.offsetY + mhomeDragState.canvas.scrollTop;
+  x = Math.max(0, x); y = Math.max(0, y);
+  mhomeDragState.card.style.left = x + 'px';
+  mhomeDragState.card.style.top  = y + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  if(!mhomeDragState) return;
+  const x = parseInt(mhomeDragState.card.style.left, 10) || 0;
+  const y = parseInt(mhomeDragState.card.style.top,  10) || 0;
+  const id = mhomeDragState.boardId;
+  state.matryoshkaHome[id] = { ...(state.matryoshkaHome[id] || {}), pos: { x, y } };
+  save();
+  mhomeDragState.card.classList.remove('mhome-dragging');
+  mhomeDragState = null;
+  mhomeDragJustEnded = true;
+  setTimeout(() => { mhomeDragJustEnded = false; }, 0);
+});
+
+// ── Matryoshka Home toolbar ──────────────────────────────────────────────
+function ensureMatryoshkaHomeToolbar(){
+  let bar = document.getElementById('mhomeToolbar');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'mhomeToolbar';
+    bar.className = 'home-mode-toggle';
+    document.body.appendChild(bar);
+  }
+  const mode = state.matryoshkaHomeMode || 'free';
+  const zoom = Math.max(0.4, Math.min(2, +state.matryoshkaHomeZoom || 1));
+  const zoomPct = Math.round(zoom * 100);
+  const homeOpts = state.matryoshkaHome || {};
+  const pinnedIds = Object.keys(state.boards || {}).filter(id => homeOpts[id] && homeOpts[id].pinned);
+  const anyCollapsed = pinnedIds.some(id => homeOpts[id] && homeOpts[id].collapsed);
+  bar.innerHTML = `
+    <div class="hmt-toggle">
+      <button data-mode="free">Free</button>
+      <button data-mode="grid">Grid</button>
+    </div>
+    ${mode === 'free' ? `
+      <div class="hmt-zoom">
+        <button data-act="zoom-out" title="Zoom out">−</button>
+        <button data-act="zoom-reset" title="Reset to 100%">${zoomPct}%</button>
+        <button data-act="zoom-in" title="Zoom in">+</button>
+      </div>
+      <button data-act="auto-fit" class="hmt-action" title="Tile boards to fit on screen">↔ Auto-fit</button>
+    ` : ''}
+    <button data-act="toggle-all" class="hmt-action">${anyCollapsed ? '▴ Max all' : '▾ Min all'}</button>
+  `;
+  bar.querySelectorAll('[data-mode]').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+    b.addEventListener('click', () => { state.matryoshkaHomeMode = b.dataset.mode; save(); render(); });
+  });
+  bar.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const act = b.dataset.act;
+    const z = Math.max(0.4, Math.min(2, +state.matryoshkaHomeZoom || 1));
+    if(act === 'zoom-out') { state.matryoshkaHomeZoom = +(Math.max(0.4, z - 0.1)).toFixed(2); save(); render(); }
+    else if(act === 'zoom-in')    { state.matryoshkaHomeZoom = +(Math.min(2, z + 0.1)).toFixed(2); save(); render(); }
+    else if(act === 'zoom-reset') { state.matryoshkaHomeZoom = 1; save(); render(); }
+    else if(act === 'auto-fit')   mhomeAutoFit();
+    else if(act === 'toggle-all') {
+      const opts = state.matryoshkaHome || {};
+      const ids = Object.keys(state.boards || {}).filter(id => opts[id] && opts[id].pinned);
+      const any = ids.some(id => opts[id] && opts[id].collapsed);
+      ids.forEach(id => { state.matryoshkaHome[id] = { ...(opts[id] || {}), collapsed: !any }; });
+      save(); render();
+    }
+  }));
+}
+
+function mhomeAutoFit(){
+  const canvas = document.getElementById('matryoshkaHomeCanvas');
+  if(!canvas) return;
+  const homeOpts = state.matryoshkaHome || {};
+  const pinnedIds = Object.keys(state.boards || {}).filter(id => homeOpts[id] && homeOpts[id].pinned);
+  const n = pinnedIds.length;
+  if(!n) return;
+  const cw = canvas.clientWidth || (window.innerWidth - 140);
+  const z = Math.max(0.4, Math.min(2, +state.matryoshkaHomeZoom || 1));
+  const logicalW = cw / z;
+  const cols = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(n))));
+  const gap = 16;
+  const cardW = Math.floor((logicalW - gap * (cols + 1)) / cols);
+  const cardH = 420;
+  pinnedIds.forEach((id, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    state.matryoshkaHome[id] = { ...(state.matryoshkaHome[id] || {}),
+      pos:  { x: gap + col * (cardW + gap), y: gap + row * (cardH + gap) },
+      size: { w: cardW, h: cardH },
+    };
+  });
+  save(); render();
 }
 
 function renderHome(host){
