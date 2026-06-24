@@ -5105,6 +5105,7 @@ function buildTabBtn(tabKey, isArchive){
   btn.innerHTML = `<span class="tab-icon-wrap"><span class="tab-icon ${sch.color}"></span></span><span class="tab-label" title="Double-click to rename">${escapeHtml(state.titles[tabKey])}</span>${badge}`;
   btn.addEventListener('click', () => {
     if(btn.dataset.suppressClick === '1'){ btn.dataset.suppressClick = ''; return; }
+    state.activeSharedBoard = null;
     state.activeTab = tabKey; save(); render();
   });
   // Double-click the label to rename inline
@@ -5207,11 +5208,12 @@ function renderSection(){
     addColBtn.style.display = '';
     addColBtn.onclick = (e) => { e.stopPropagation(); openAddColumnPicker(tab, addColBtn); };
   }
-  // Show share button on live owner boards; hide it on shared/archive/home tabs
+  // Show share button on any owner list tab; hide on home, archives, and shared-board tabs
   const shareBtn = document.getElementById('shareBtn');
   if (shareBtn) {
-    const isOwnerLiveBoard = LIVE_BOARDS.includes(tab) && !state.activeSharedBoard;
-    shareBtn.style.display = isOwnerLiveBoard ? '' : 'none';
+    const isArchiveTab = Object.values(ARCHIVE_OF).includes(tab);
+    const isSharedTab  = tab.startsWith('__sb_');
+    shareBtn.style.display = (isArchiveTab || isSharedTab) ? 'none' : '';
   }
   // Apply saved per-list width and height (or fall back to defaults)
   const card = document.getElementById('sectionCard');
