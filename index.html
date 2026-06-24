@@ -1089,7 +1089,31 @@ body.view-dashboard .back-to-dash{display:none}
 .matryoshka-card:hover .mhome-resize{opacity:.4}
 .mhome-resize:hover{opacity:1}
 </style>
-<!-- Supabase CDN removed in this fork — backend is Google Apps Script + Sheets. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+/* ── Auth gate ── */
+body.lg-gated .header,
+body.lg-gated .sidebar,
+body.lg-gated .main,
+body.lg-gated #lgArtBackground,
+body.lg-gated #lgArtAttribution{display:none!important}
+#lgLoginOverlay{display:none;position:fixed;inset:0;z-index:99999;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#020516 0%,#070426 62%,#24004d 100%);}
+#lgLoginOverlay.visible{display:flex}
+.lg-login-box{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;padding:48px 40px;
+  background:rgba(6,16,38,.92);border:1px solid rgba(255,75,216,.32);border-radius:20px;
+  box-shadow:0 0 40px rgba(255,75,216,.18),0 24px 80px rgba(0,0,0,.6);max-width:360px;width:90%}
+.lg-login-logo{font-size:22px;font-weight:800;letter-spacing:2px;text-transform:uppercase;
+  color:#00f5ff;text-shadow:0 0 16px rgba(0,245,255,.7)}
+.lg-login-tagline{font-size:13px;color:#9ba8bf;margin:0}
+#lgSignInBtn{display:flex;align-items:center;gap:10px;padding:11px 24px;
+  border:1px solid rgba(255,75,216,.5);border-radius:12px;background:rgba(255,75,216,.1);
+  color:#f8fafc;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;
+  box-shadow:0 0 14px rgba(255,75,216,.25);transition:all .15s}
+#lgSignInBtn:hover{background:rgba(255,75,216,.2);box-shadow:0 0 22px rgba(255,75,216,.4)}
+#lgSignInBtn::before{content:'G';display:inline-block;width:20px;height:20px;border-radius:50%;
+  background:#fff;color:#4285f4;font-weight:700;font-size:12px;line-height:20px;text-align:center;flex-shrink:0}
+</style>
 </head>
 <body>
 
@@ -1208,9 +1232,27 @@ body.view-dashboard .back-to-dash{display:none}
 })();
 </script>
 
-<!-- ── SSO GATE (Supabase Auth + Google OAuth, allowlist enforced at the database via RLS) ── -->
+<!-- ── SSO GATE (Supabase Auth + Google OAuth) ── -->
+<div id="lgLoginOverlay">
+  <div class="lg-login-box">
+    <div class="lg-login-logo">◉ Matryoshka</div>
+    <p class="lg-login-tagline">Sign in to sync your boards</p>
+    <button id="lgSignInBtn" type="button">Sign in with Google</button>
+  </div>
+</div>
 <script>
-window.__lgAuth = { ready: true, user: { id: 'local', email: 'local' }, showLogin(){}, hideLogin(){}, signOut(){ location.reload(); } };
+window.__lgAuth = {
+  ready: false,
+  user: null,
+  client: null,
+  showLogin(){ document.getElementById('lgLoginOverlay').classList.add('visible'); },
+  hideLogin(){ document.getElementById('lgLoginOverlay').classList.remove('visible'); },
+  signOut(){ window.__lgAuth.client?.auth.signOut(); },
+};
+document.getElementById('lgSignInBtn').addEventListener('click', () => {
+  const c = window.__lgAuth.client;
+  if (c) c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+});
 </script>
 
 <div class="header-zone" id="headerZone"></div>
@@ -1265,176 +1307,78 @@ window.__lgAuth = { ready: true, user: { id: 'local', email: 'local' }, showLogi
 /* ── DATA ── */
 const STORAGE_KEY = 'lg-firm-todo-v1';
 
-/* ── APPS SCRIPT + GOOGLE SHEETS BACKEND (experimental fork) ──────────────
-   This fork replaces Supabase with a Google Sheets / Apps Script backend.
-   Setup steps live in firm-todo-tracker-sheets.gs. Paste your deployed Web app
-   /exec URL into APPS_SCRIPT_URL below.
+/* ── SUPABASE BACKEND ──────────────────────────────────────────────────────
+   Paste your Project URL and anon key from Supabase → Settings → API.
+   Schema (run in Supabase SQL Editor):
 
-   What's swapped vs. the original:
-     - Persistence:    Supabase Postgres → one cell in a Google Sheet (full JSON blob)
-     - Audit log:      Supabase table     → second sheet, one row per push
-     - Auth:           Google OAuth + RLS → fake "always-signed-in" session
-                       (Tracker is gated by being on tracker.lawgorithm.xyz; the
-                       Apps Script URL is unguessable. Add a shared-secret prompt
-                       later if you want more.)
-     - Realtime:       Postgres CDC      → 5s polling for updated_at changes
+   create table app_state (
+     id text not null,
+     owner_id uuid references auth.users(id) on delete cascade not null,
+     data jsonb not null default '{}',
+     updated_at timestamptz default now() not null,
+     primary key (id, owner_id)
+   );
+   alter table app_state enable row level security;
+   create policy "owner read"   on app_state for select using (auth.uid() = owner_id);
+   create policy "owner insert" on app_state for insert with check (auth.uid() = owner_id);
+   create policy "owner update" on app_state for update using (auth.uid() = owner_id);
+
+   create table app_state_log (
+     id         uuid default gen_random_uuid() primary key,
+     user_id    uuid references auth.users(id),
+     user_email text,
+     rev        text,
+     prev_rev   text,
+     byte_size  int,
+     diff       jsonb,
+     at         timestamptz default now()
+   );
+   alter table app_state_log enable row level security;
+   create policy "owner read log"   on app_state_log for select using (auth.uid() = user_id);
+   create policy "owner insert log" on app_state_log for insert with check (auth.uid() = user_id);
    ────────────────────────────────────────────────────────────────────────── */
-const APPS_SCRIPT_URL = ''; // Paste your own Apps Script /exec URL here
-const SHEETS_POLL_INTERVAL_MS = 5000;
-// Bump this integer whenever the push/merge/migration logic changes in a breaking way.
-// Old clients that pull a blob with a higher version will be shown a hard reload gate.
+const SUPABASE_URL      = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
+// Bump when push/merge/migration logic changes in a breaking way.
 const SCHEMA_VERSION = 1;
 
-// Audit-log identity — prompt once, persist locally. (No real auth in this fork.)
-let LG_SHEETS_USER_EMAIL = (function(){
-  try {
-    let v = localStorage.getItem('lg-sheets-user-email');
-    if (!v) {
-      v = (prompt('Your email (used for the tracker audit log):') || 'anonymous').trim();
-      localStorage.setItem('lg-sheets-user-email', v);
-    }
-    return v;
-  } catch(_) { return 'anonymous'; }
+// Initialize real Supabase client. If the CDN script hasn't loaded (offline, blocked),
+// bail gracefully — the app still works locally, just won't sync.
+let supa = null;
+(function initSupabase(){
+  if (typeof supabase === 'undefined'){
+    console.warn('Supabase CDN script not loaded — running in offline/local-only mode.');
+    // Synthesize a minimal no-op client so boot doesn't throw
+    const noop = () => ({ data: null, error: { message: 'offline' } });
+    const noopPromise = () => Promise.resolve(noop());
+    const noopChannel = {
+      on(){ return noopChannel; },
+      subscribe(){ return noopChannel; },
+      unsubscribe(){ return noopChannel; },
+    };
+    supa = {
+      from(){ return { select(){ return this; }, eq(){ return this; }, order(){ return this; }, limit(){ return this; }, maybeSingle(){ return noopPromise(); }, insert: noopPromise, upsert: noopPromise, then(r,j){ return noopPromise().then(r,j); } }; },
+      channel(){ return noopChannel; },
+      auth: {
+        onAuthStateChange(cb){ setTimeout(() => cb('SIGNED_OUT', null), 0); return { data: { subscription: { unsubscribe(){} } } }; },
+        signOut: noopPromise,
+        signInWithOAuth: noopPromise,
+        getUser: noopPromise,
+      },
+    };
+    window.__lgAuth.client = supa;
+    window.__lgAuth.ready = true;
+    return;
+  }
+
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  window.__supabase = client;
+  window.__lgAuth.client = client;
+  window.__lgAuth.ready = true;
+  window.__lgAuth.signOut = () => client.auth.signOut();
+  supa = client;
 })();
-
-async function _appsScriptCall(method, params, body){
-  if (!APPS_SCRIPT_URL) throw new Error('APPS_SCRIPT_URL is empty — paste your /exec URL into firm-todo-tracker-sheets.html');
-  let url = APPS_SCRIPT_URL;
-  if (params){
-    const qp = new URLSearchParams(params);
-    url += (url.includes('?') ? '&' : '?') + qp.toString();
-  }
-  const opts = { method: method, redirect: 'follow' };
-  if (body != null){
-    // text/plain Content-Type avoids the CORS preflight that Apps Script can't satisfy.
-    opts.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
-    opts.body = JSON.stringify(body);
-  }
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error('Apps Script HTTP ' + r.status);
-  return r.json();
-}
-
-// Minimal Supabase-API-shaped shim: implements only the call patterns this file uses.
-//   supa.from('app_state').select('data, updated_at').eq('id','main').maybeSingle()
-//   supa.from('app_state').select('id').eq('id','main').limit(1)             // RLS probe
-//   supa.from('app_state').upsert({ id, data, updated_at })
-//   supa.from('app_state_log').select('*').order('at',{ascending:false}).limit(500)
-//   supa.from('app_state_log').insert({ user_id, user_email, rev, prev_rev, byte_size, diff })
-class _SupaQuery {
-  constructor(table){ this.table = table; this._terminal = null; this._payload = null; this._limit = null; }
-  select(_cols){ return this; }
-  eq(_col, _val){ return this; }
-  order(_col, _opts){ return this; }
-  limit(n){ this._terminal = this._terminal || 'limit'; this._limit = n; return this; }
-  maybeSingle(){ this._terminal = 'maybeSingle'; return this; }
-  insert(row){ this._terminal = 'insert'; this._payload = row; return this._dispatch(); }
-  upsert(row){ this._terminal = 'upsert'; this._payload = row; return this._dispatch(); }
-  // Thenable so `await chain.eq(...).limit(1)` works without an explicit terminal.
-  then(resolve, reject){ return this._dispatch().then(resolve, reject); }
-  async _dispatch(){
-    try {
-      if (this.table === 'app_state' && this._terminal === 'maybeSingle'){
-        const j = await _appsScriptCall('GET', { op: 'pull' });
-        if (j && j.error) return { data: null, error: { message: j.error } };
-        return { data: (j && j.data) ? { data: j.data, updated_at: j.updated_at } : null, error: null };
-      }
-      if (this.table === 'app_state' && this._terminal === 'limit'){
-        // RLS-style reachability probe — used to gate the boot. For the Apps Script
-        // backend there's no per-user RLS to check (auth is via Drive ACL on the
-        // HTML file, not per-call), and the boot's 6s timeout was occasionally
-        // tripping on Apps Script cold-start latency or transient throttling.
-        // Always pass instantly; if the actual pull/push fails later, the existing
-        // sync-error banner surfaces it.
-        return { data: [{ id: 'main' }], error: null };
-      }
-      if (this.table === 'app_state' && this._terminal === 'upsert'){
-        const j = await _appsScriptCall('POST', null, { op: 'push', data: this._payload.data, expected_rev: this._payload.expected_rev || null });
-        if (j && j.error) return { data: null, error: { message: j.error } };
-        if (j && j.conflict) return { data: { conflict: true, cloudData: j.data, cloudUpdatedAt: j.updated_at }, error: null };
-        return { data: { updated_at: (j && j.updated_at) || null }, error: null };
-      }
-      if (this.table === 'app_state_log' && this._terminal === 'insert'){
-        const j = await _appsScriptCall('POST', null, Object.assign({ op: 'log' }, this._payload));
-        if (j && j.error) return { data: null, error: { message: j.error } };
-        return { data: null, error: null };
-      }
-      if (this.table === 'app_state_log' && this._terminal === 'limit'){
-        const j = await _appsScriptCall('GET', { op: 'log', limit: String(this._limit || 500) });
-        if (j && j.error) return { data: null, error: { message: j.error } };
-        return { data: (j && j.data) || [], error: null };
-      }
-      return { data: null, error: { message: 'sheets-shim: unsupported call ' + this.table + '/' + this._terminal } };
-    } catch (e){
-      return { data: null, error: { message: (e && e.message) || String(e) } };
-    }
-  }
-}
-
-// Polling-based realtime channel. Polls every SHEETS_POLL_INTERVAL_MS; fires the
-// registered callback whenever updated_at advances vs. the last value we saw.
-//
-// IMPORTANT: the first poll after subscribe just snapshots the current cloud
-// version — it does NOT fire the callback. This avoids the bug where a poll
-// fires before the user's first push completes, fetches stale cloud, and
-// clobbers in-flight local edits. We only fire on a SECOND, NEWER version.
-let _sheetsLastPolledUpdatedAt = null;
-function _makeSheetsChannel(){
-  let callback = null;
-  let pollId = null;
-  let isFirstPoll = true;
-  let inFlight = false;
-  const c = {
-    on(_event, _filter, cb){ callback = cb; return c; },
-    subscribe(){
-      pollId = setInterval(async () => {
-        if (inFlight) return;       // skip overlapping polls if the prior one is still running
-        if (pendingLocalChanges) return; // never overwrite local while a push is queued/pending
-        inFlight = true;
-        try {
-          const j = await _appsScriptCall('GET', { op: 'pull' });
-          if (j && j.updated_at){
-            if (isFirstPoll){
-              _sheetsLastPolledUpdatedAt = j.updated_at;
-              isFirstPoll = false;
-            } else if (j.updated_at !== _sheetsLastPolledUpdatedAt){
-              _sheetsLastPolledUpdatedAt = j.updated_at;
-              if (callback && j.data) callback({ new: { data: j.data } });
-            }
-          }
-        } catch (_) { /* swallow blip; try again next tick */ }
-        finally { inFlight = false; }
-      }, SHEETS_POLL_INTERVAL_MS);
-      return c;
-    },
-    unsubscribe(){ if (pollId) clearInterval(pollId); pollId = null; return c; },
-  };
-  return c;
-}
-
-const supa = {
-  from(table){ return new _SupaQuery(table); },
-  channel(_name){ return _makeSheetsChannel(); },
-  auth: {
-    onAuthStateChange(cb){
-      // Synthesize an immediate INITIAL_SESSION so the boot flow proceeds.
-      setTimeout(() => cb('INITIAL_SESSION', {
-        user: { id: 'sheets-fork', email: LG_SHEETS_USER_EMAIL },
-        access_token: 'sheets-fork',
-      }), 0);
-      return { data: { subscription: { unsubscribe(){} } } };
-    },
-    signOut(){ return Promise.resolve({ error: null }); },
-    signInWithOAuth(){ return Promise.resolve({ error: null }); },
-  },
-};
-window.__lgAuth.client = supa;
-window.__lgAuth.ready = true;
-
-// Bottom fork-marker banner removed 2026-05-21 (Jess prefers a clean bottom edge).
-// Kept the no-op guard: if APPS_SCRIPT_URL is empty, only a console warning fires —
-// the sync-error banner at the top already surfaces persistence failures to the user.
-if (!APPS_SCRIPT_URL) console.warn('APPS_SCRIPT_URL is empty — paste your /exec URL into firm-todo-tracker-sheets.html to enable persistence.');
 
 // Auth gate: returns true if we should proceed with the rest of the app.
 // Hides the tracker UI until a valid (allowlisted) session exists.
@@ -2006,8 +1950,9 @@ async function pushStateToCloud() {
     const pushedAt = new Date().toISOString();
     const { error, data: pushResult } = await supa.from('app_state').upsert({
       id: 'main',
+      owner_id: window.__lgAuth.user?.id,
       data: payloadState,
-      expected_rev: lastPushedRev,
+      updated_at: pushedAt,
     });
     if (error) {
       console.warn('push failed', error);
@@ -2112,14 +2057,21 @@ function flushOnUnload(){
     return;
   }
   try {
-    if (!APPS_SCRIPT_URL) return; // nothing to flush to
+    if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_PROJECT_ID')) return;
+    const ownerId = window.__lgAuth?.user?.id;
+    if (!ownerId) return;
     const { boardPos, boardSize, sectionSize, activeTab, activeBoardId, homeViewMode, boardZoom, preferredLayout, collapsedRows, boardCollapsed, bgGuggenheim, ...sharedState } = state;
-    const body = JSON.stringify({ op: 'push', data: sharedState });
-    fetch(APPS_SCRIPT_URL, {
+    // Use Supabase REST API with keepalive so this survives page unload
+    fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
       method: 'POST',
       keepalive: true,
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body,
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${cachedAccessToken}`,
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({ id: 'main', owner_id: ownerId, data: sharedState, updated_at: new Date().toISOString() }),
     }).catch(() => {});
   } catch(_) { /* best effort */ }
 }
