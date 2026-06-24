@@ -96,6 +96,9 @@ body{
 .board-switcher::after{content:'▾';font-size:9px;color:var(--muted);margin-top:1px}
 .board-switcher:hover{background:rgba(37,47,124,.05)}
 .board-switcher.open{background:rgba(37,47,124,.06)}
+#matryoshkaHomeBtn{font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:inherit;padding:5px 10px;border-radius:7px;white-space:nowrap;letter-spacing:.01em}
+#matryoshkaHomeBtn:hover{background:rgba(37,47,124,.05);color:var(--text)}
+#matryoshkaHomeBtn.active{color:var(--lg-blue);background:rgba(37,47,124,.07)}
 .board-menu{position:fixed;background:#fff;border:1px solid var(--border-strong);border-radius:10px;box-shadow:0 10px 28px rgba(37,47,124,.18);padding:6px;z-index:9999;min-width:240px;max-width:340px}
 .board-menu-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:14px;color:var(--text)}
 .board-menu-item:hover{background:rgba(43,177,230,.10)}
@@ -908,6 +911,7 @@ window.__lgAuth = { ready: true, user: { id: 'local', email: 'local' }, showLogi
 <div class="header">
   <span class="logo"><span class="dot"></span>Matryoshka</span>
   <button class="title board-switcher" id="boardSwitcher" type="button"></button>
+  <button id="matryoshkaHomeBtn" type="button" title="Matryoshka Home — all boards at a glance">◉ Home</button>
   <button class="sync-status" id="syncStatus" type="button" title="Click to pull the latest from the cloud">
     <span class="sync-dot"></span>
     <span class="sync-label">syncing…</span>
@@ -2680,7 +2684,8 @@ function defaultState(){
     userBoards: {},
     boardOrder: ['client','financing','bd','internal'],
     homeViewMode: 'free',
-    matryoshkaOpts: {},
+    matryoshkaHome: {},
+    viewingMatryoshkaHome: false,
     boardPos:  { internal:{x:20,y:20}, client:{x:600,y:20}, bd:{x:20,y:520}, financing:{x:600,y:520} },
     boardSize: { internal:{w:560,h:0}, client:{w:560,h:0}, bd:{w:560,h:0}, financing:{w:560,h:0} },
     titles: {
@@ -2739,7 +2744,7 @@ const DEFAULT_TILES = [
 ];
 
 // Fields that vary PER BOARD (swap in/out on board switch)
-const PER_BOARD_FIELDS = ['rows','titles','headers','colWidths','userColumns','colOrder','boardOrder','userBoards','activeTab','bgColor','brandImage','hiddenCols','matryoshkaOpts'];
+const PER_BOARD_FIELDS = ['rows','titles','headers','colWidths','userColumns','colOrder','boardOrder','userBoards','activeTab','bgColor','brandImage','hiddenCols'];
 
 function snapshotBoardFields(s){
   const out = {};
@@ -2777,6 +2782,8 @@ function runStateMigrations(s){
     if(s.boards.main.data.brandImage === undefined && typeof s.brandImage === 'string') s.boards.main.data.brandImage = s.brandImage;
   }
   if(!s.activeBoardId || !s.boards[s.activeBoardId]) s.activeBoardId = 'main';
+  if(!s.matryoshkaHome) s.matryoshkaHome = {};
+  if(s.viewingMatryoshkaHome === undefined) s.viewingMatryoshkaHome = false;
   s.titles = s.titles || {};
   if(!s.titles.home) s.titles.home = 'Home';
   if(!s.activeTab) s.activeTab = 'home';
@@ -3043,6 +3050,7 @@ function switchBoard(id){
   // it's hidden on single-list views. Otherwise a workspace whose last view was
   // an individual list opens without the toolbar.
   state.activeTab = 'home';
+  state.viewingMatryoshkaHome = false;
   save();
   render();
   if (typeof maybeSeedMechanicsListOnce === 'function') maybeSeedMechanicsListOnce();
@@ -3483,9 +3491,22 @@ function renderTrackerInternal(){
   renderTabs();
   renderSection();
   renderBoardSwitcher();
+  renderMatryoshkaHomeButton();
   renderBrandCorner();
   applyBgColor();
   wireSectionMenu();
+}
+
+function renderMatryoshkaHomeButton(){
+  const btn = document.getElementById('matryoshkaHomeBtn');
+  if(!btn) return;
+  btn.classList.toggle('active', !!state.viewingMatryoshkaHome);
+  if(btn.dataset.wired) return;
+  btn.dataset.wired = '1';
+  btn.addEventListener('click', () => {
+    state.viewingMatryoshkaHome = !state.viewingMatryoshkaHome;
+    save(); render();
+  });
 }
 
 function wireSectionMenu(){
@@ -4155,10 +4176,12 @@ function openBoardMenu(anchor){
   boards.forEach(b => {
     const item = document.createElement('div');
     item.className = 'board-menu-item' + (b.isActive ? ' active' : '');
+    const isPinned = !!(state.matryoshkaHome && state.matryoshkaHome[b.id] && state.matryoshkaHome[b.id].pinned);
     item.innerHTML = `
       <span class="check">${b.isActive ? '✓' : ''}</span>
       <span class="name">${escapeHtml(b.title)}</span>
       <span class="row-actions">
+        <button class="pin" title="${isPinned ? 'Unpin from Matryoshka Home' : 'Pin to Matryoshka Home'}" style="opacity:${isPinned?'1':'.45'}">${isPinned ? '◉' : '◎'}</button>
         <button class="tpl" title="Save as template">⌬</button>
         <button class="dup" title="Duplicate">⎘</button>
         <button class="rename" title="Rename">✎</button>
@@ -4166,6 +4189,13 @@ function openBoardMenu(anchor){
       </span>`;
     item.querySelector('.name').addEventListener('click', () => { closeBoardMenu(); switchBoard(b.id); });
     item.querySelector('.check').addEventListener('click', () => { closeBoardMenu(); switchBoard(b.id); });
+    item.querySelector('.pin').addEventListener('click', e => {
+      e.stopPropagation();
+      state.matryoshkaHome = state.matryoshkaHome || {};
+      const cur = state.matryoshkaHome[b.id] || {};
+      state.matryoshkaHome[b.id] = { ...cur, pinned: !cur.pinned };
+      save(); closeBoardMenu(); render();
+    });
     item.querySelector('.tpl').addEventListener('click', e => {
       e.stopPropagation();
       closeBoardMenu();
@@ -4300,6 +4330,27 @@ function renderSection(){
   const iconEl = document.getElementById('sectionIcon');
   const host = document.getElementById('tableHost');
   const addBtn = document.getElementById('addRowBtn');
+
+  // Global cross-board Matryoshka Home view
+  if (state.viewingMatryoshkaHome) {
+    titleEl.style.display = 'none';
+    addBtn.style.display = 'none';
+    const _addCol = document.getElementById('addColBtn');
+    if (_addCol) _addCol.style.display = 'none';
+    if (host) host.innerHTML = '';
+    document.body.classList.add('view-home');
+    let homeHost = document.getElementById('homeHost');
+    if(!homeHost){
+      homeHost = document.createElement('div');
+      homeHost.id = 'homeHost';
+      document.querySelector('.main').appendChild(homeHost);
+    }
+    homeHost.innerHTML = `<div class="matryoshka-canvas" id="matryoshkaHomeCanvas"></div>`;
+    const toggle = document.getElementById('homeModeToggle');
+    if(toggle) toggle.remove();
+    renderMatryoshkaHome(document.getElementById('matryoshkaHomeCanvas'));
+    return;
+  }
 
   if(tab === 'home'){
     titleEl.style.display = 'none';
@@ -4554,7 +4605,6 @@ function ensureHomeModeToggle(){
     <div class="hmt-toggle">
       <button data-mode="free">Free</button>
       <button data-mode="stacked">Stacked</button>
-      <button data-mode="matryoshka">◉ Home</button>
     </div>
     ${mode === 'free' ? `
       <div class="hmt-zoom">
@@ -4648,125 +4698,120 @@ function autoFitBoards(){
 }
 
 function renderMatryoshkaHome(canvas){
-  const opts = state.matryoshkaOpts || {};
-  const allTabs = state.boardOrder || [];
+  canvas.innerHTML = '';
+  const homeOpts = state.matryoshkaHome || {};
+  const allBoardIds = Object.keys(state.boards || {});
+  const pinnedIds   = allBoardIds.filter(id => homeOpts[id] && homeOpts[id].pinned);
+  const unpinnedIds = allBoardIds.filter(id => !(homeOpts[id] && homeOpts[id].pinned));
 
-  // Default: all tabs are visible unless explicitly hidden
-  const visibleTabs = allTabs.filter(k => !(opts[k] && opts[k].on === false));
-  const hiddenTabs  = allTabs.filter(k =>  (opts[k] && opts[k].on === false));
-
-  if(visibleTabs.length === 0){
+  if(pinnedIds.length === 0){
     canvas.innerHTML = `
       <div class="matryoshka-empty">
-        <h2>Your home view is empty</h2>
-        <p>All lists are currently hidden. Use the buttons below to bring them back.</p>
+        <h2>Your Matryoshka Home is empty</h2>
+        <p>Pin boards here for a cross-board overview. Use the board menu (▾ next to a board name) and choose "Pin to Home".</p>
       </div>`;
-  } else {
-    visibleTabs.forEach(tabKey => {
-      const sch = SCHEMAS[tabKey];
-      if(!sch) return;
-      const opt = opts[tabKey] || {};
-      const collapsed = !!opt.collapsed;
-      const allRows = state.rows[tabKey] || [];
-      const rows = visibleRowsAfterCollapse(allRows);
-      const doneCount = rows.filter(r => r.dateResolved || r.status === 'Done').length;
+  }
 
-      const card = document.createElement('div');
-      card.className = 'matryoshka-card' + (collapsed ? ' mc-collapsed' : '');
-      card.dataset.tab = tabKey;
+  pinnedIds.forEach(id => {
+    const board = state.boards[id];
+    if(!board) return;
+    const opts = homeOpts[id] || {};
+    const collapsed = !!opts.collapsed;
 
-      // Header
-      const head = document.createElement('div');
-      head.className = 'matryoshka-card-head';
-      const collapseLabel = collapsed ? '▸' : '▾';
-      head.innerHTML = `
-        <span class="tab-icon ${sch.color || ''}"></span>
-        <span class="matryoshka-card-title">${escapeHtml(state.titles[tabKey] || sch.label)}</span>
-        <span class="matryoshka-card-count">${doneCount}/${rows.length}</span>
-        <button class="matryoshka-card-collapse" title="${collapsed ? 'Expand' : 'Collapse'}">${collapseLabel}</button>
-        <button class="matryoshka-card-open btn-primary">Open →</button>
-        <button class="mc-hide-btn" title="Hide from home">✕</button>
-      `;
-      head.querySelector('.matryoshka-card-open').addEventListener('click', e => {
-        e.stopPropagation();
-        state.activeTab = tabKey; save(); render();
-      });
-      head.querySelector('.matryoshka-card-collapse').addEventListener('click', e => {
-        e.stopPropagation();
-        state.matryoshkaOpts = state.matryoshkaOpts || {};
-        state.matryoshkaOpts[tabKey] = { ...(opts[tabKey] || {}), collapsed: !collapsed };
-        save(); renderMatryoshkaHome(canvas);
-      });
-      head.querySelector('.mc-hide-btn').addEventListener('click', e => {
-        e.stopPropagation();
-        if(!confirm('Hide "' + (state.titles[tabKey] || tabKey) + '" from the home view?')) return;
-        state.matryoshkaOpts = state.matryoshkaOpts || {};
-        state.matryoshkaOpts[tabKey] = { ...(opts[tabKey] || {}), on: false };
-        save(); renderMatryoshkaHome(canvas);
-      });
-      card.appendChild(head);
+    // For the active board, read live state; for others, use their snapshot.
+    const isActive = id === state.activeBoardId;
+    const bRows    = isActive ? state.rows        : (board.data && board.data.rows     || {});
+    const bOrder   = isActive ? state.boardOrder  : (board.data && board.data.boardOrder || []);
+    const bTitles  = isActive ? state.titles      : (board.data && board.data.titles   || {});
 
-      if(!collapsed){
-        const body = document.createElement('div');
-        body.className = 'matryoshka-card-body';
-        if(rows.length === 0){
-          body.innerHTML = `<div style="padding:12px 14px;font-size:12.5px;color:var(--muted)">No tasks yet.</div>`;
-        } else {
+    // Aggregate task counts across all lists
+    const allTaskRows = bOrder.flatMap(k => bRows[k] || []);
+    const doneCount   = allTaskRows.filter(r => r.dateResolved || r.status === 'Done').length;
+    const totalCount  = allTaskRows.length;
+
+    const card = document.createElement('div');
+    card.className = 'matryoshka-card' + (collapsed ? ' mc-collapsed' : '');
+    card.dataset.boardId = id;
+
+    const head = document.createElement('div');
+    head.className = 'matryoshka-card-head';
+    const collapseLabel = collapsed ? '▸' : '▾';
+    head.innerHTML = `
+      <span class="matryoshka-card-title">${escapeHtml(board.title || 'Untitled')}</span>
+      <span class="matryoshka-card-count">${doneCount}/${totalCount}</span>
+      <button class="matryoshka-card-collapse" title="${collapsed ? 'Expand' : 'Collapse'}">${collapseLabel}</button>
+      <button class="matryoshka-card-open btn-primary">Open →</button>
+      <button class="mc-hide-btn" title="Unpin from Matryoshka Home">✕</button>
+    `;
+    head.querySelector('.matryoshka-card-open').addEventListener('click', e => {
+      e.stopPropagation();
+      state.viewingMatryoshkaHome = false;
+      switchBoard(id);
+    });
+    head.querySelector('.matryoshka-card-collapse').addEventListener('click', e => {
+      e.stopPropagation();
+      state.matryoshkaHome = state.matryoshkaHome || {};
+      state.matryoshkaHome[id] = { ...opts, collapsed: !collapsed };
+      save(); renderMatryoshkaHome(canvas);
+    });
+    head.querySelector('.mc-hide-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      if(!confirm('Unpin "' + escapeHtml(board.title || id) + '" from Matryoshka Home?')) return;
+      state.matryoshkaHome = state.matryoshkaHome || {};
+      state.matryoshkaHome[id] = { ...opts, pinned: false };
+      save(); renderMatryoshkaHome(canvas);
+    });
+    card.appendChild(head);
+
+    if(!collapsed){
+      const body = document.createElement('div');
+      body.className = 'matryoshka-card-body';
+      const listsWithTasks = bOrder.filter(k => (bRows[k] || []).length > 0);
+      if(listsWithTasks.length === 0){
+        body.innerHTML = `<div style="padding:12px 14px;font-size:12.5px;color:var(--muted)">No tasks yet.</div>`;
+      } else {
+        listsWithTasks.forEach(listKey => {
+          const rows = visibleRowsAfterCollapse(bRows[listKey] || []);
+          const listTitle = bTitles[listKey] || listKey;
+          const listHead = document.createElement('div');
+          listHead.style.cssText = 'padding:5px 14px 3px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-top:1px solid var(--border)';
+          listHead.textContent = listTitle;
+          body.appendChild(listHead);
           rows.forEach(row => {
             const isDone = !!(row.dateResolved || row.status === 'Done');
             const taskDiv = document.createElement('div');
             taskDiv.className = 'mc-task' + (isDone ? ' mc-done' : '');
             taskDiv.style.setProperty('--mc-ind', Math.max(0, row.indent | 0));
-            const rawTask = row.task || '';
+            const rawTask = row.task || row.matter || row.client || row.prospect || '';
             const taskHtml = /<\/?[a-z][^>]*>/i.test(rawTask)
               ? sanitizeRowHtml(rawTask) : escapeHtml(rawTask);
             taskDiv.innerHTML = `<input type="checkbox" ${isDone?'checked':''}><span class="mc-task-text">${taskHtml}</span>`;
-            taskDiv.querySelector('input').addEventListener('change', e => {
-              const checked = e.target.checked;
-              const r = (state.rows[tabKey] || []).find(x => x.id === row.id);
-              if(r){
-                r.status = checked ? 'Done' : 'Not started';
-                r.dateResolved = checked ? todayISO() : '';
-                save();
-                // update count badge without full re-render
-                const newDone = (state.rows[tabKey] || []).filter(x => x.dateResolved || x.status === 'Done').length;
-                const badge = card.querySelector('.matryoshka-card-count');
-                if(badge) badge.textContent = newDone + '/' + rows.length;
-              }
-            });
             body.appendChild(taskDiv);
           });
-        }
-        card.appendChild(body);
-
-        const foot = document.createElement('div');
-        foot.className = 'matryoshka-card-foot';
-        foot.innerHTML = `<button>+ Add task</button>`;
-        foot.querySelector('button').addEventListener('click', () => {
-          state.activeTab = tabKey; save(); render();
-          setTimeout(() => addRow(), 80);
         });
-        card.appendChild(foot);
       }
-      canvas.appendChild(card);
-    });
-  }
+      card.appendChild(body);
+    }
+    canvas.appendChild(card);
+  });
 
-  // Restore-strip for hidden lists
-  if(hiddenTabs.length > 0){
+  // Strip of unpinned boards to add
+  if(unpinnedIds.length > 0){
     const strip = document.createElement('div');
-    strip.style.cssText = 'grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 8px';
+    strip.style.cssText = 'grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;padding:8px 0;align-items:center';
     const lbl = document.createElement('span');
-    lbl.style.cssText = 'font-size:11px;color:var(--muted);align-self:center';
-    lbl.textContent = 'Hidden:';
+    lbl.style.cssText = 'font-size:11px;color:var(--muted);margin-right:4px';
+    lbl.textContent = pinnedIds.length === 0 ? 'Add a board:' : 'Other boards:';
     strip.appendChild(lbl);
-    hiddenTabs.forEach(k => {
+    unpinnedIds.forEach(id => {
+      const board = state.boards[id];
+      if(!board) return;
       const btn = document.createElement('button');
-      btn.textContent = '+ ' + escapeHtml(state.titles[k] || k);
+      btn.textContent = '+ ' + escapeHtml(board.title || 'Untitled');
       btn.style.cssText = 'font-size:11px;padding:3px 9px;color:var(--muted);border:1px dashed var(--border-strong);background:transparent;border-radius:6px;cursor:pointer';
       btn.addEventListener('click', () => {
-        state.matryoshkaOpts = state.matryoshkaOpts || {};
-        state.matryoshkaOpts[k] = { ...(state.matryoshkaOpts[k] || {}), on: true };
+        state.matryoshkaHome = state.matryoshkaHome || {};
+        state.matryoshkaHome[id] = { ...(state.matryoshkaHome[id] || {}), pinned: true };
         save(); renderMatryoshkaHome(canvas);
       });
       strip.appendChild(btn);
@@ -4776,14 +4821,7 @@ function renderMatryoshkaHome(canvas){
 }
 
 function renderHome(host){
-  const mode = state.homeViewMode === 'stacked' ? 'stacked' : state.homeViewMode === 'matryoshka' ? 'matryoshka' : 'free';
-
-  if(mode === 'matryoshka'){
-    host.innerHTML = `<div class="matryoshka-canvas" id="boardCanvas"></div>`;
-    ensureHomeModeToggle();
-    renderMatryoshkaHome(document.getElementById('boardCanvas'));
-    return;
-  }
+  const mode = state.homeViewMode === 'stacked' ? 'stacked' : 'free';
 
   const zoom = Math.max(0.4, Math.min(2, +state.boardZoom || 1));
   // In free mode at non-100% zoom, scale the whole canvas. Compensate width so the
