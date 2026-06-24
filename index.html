@@ -5133,7 +5133,7 @@ function renderTabs(){
   const nav = document.getElementById('tabNav');
   nav.innerHTML = '';
 
-  const onHome = state.viewingMatryoshkaHome || state.activeTab === 'home';
+  const onHome = !!state.viewingMatryoshkaHome;
 
   // Sidebar title + footer visibility change based on level
   const sidebarTitle = document.querySelector('.sidebar-title');
