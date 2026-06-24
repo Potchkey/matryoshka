@@ -32,6 +32,282 @@
 }
 /* ── SKINS ── each skin overrides only the variables it changes ── */
 /* Simple = defaults above, no overrides needed */
+
+/* ── DARK NEON / 80s SYNTHWAVE ────────────────────────────────────────────── */
+body[data-skin="dark-neon"]{
+  --bg:transparent;
+  --card:rgba(6,16,38,.90);
+  --border:rgba(255,75,216,.18);
+  --border-strong:rgba(255,75,216,.38);
+  --text:#f8fafc;
+  --muted:#9ba8bf;
+  --row-hover:rgba(255,75,216,.05);
+  --row-drop:rgba(0,245,255,.14);
+  --dot:rgba(255,75,216,.55);
+  --header-bg:rgba(3,8,23,.97);
+  --sidebar-bg:rgba(3,8,23,.97);
+  --lg-blue:#a855f7;
+  --lg-yellow:#ffd21f;
+  --lg-pink:#ff4bd8;
+  --lg-cyan:#00f5ff;
+  background-image:none !important;
+}
+/* Cosmic background gradient */
+body[data-skin="dark-neon"]::before{
+  content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(ellipse 110% 30% at 50% 100%, rgba(255,75,216,.55) 0%, rgba(168,85,247,.22) 40%, transparent 70%),
+    linear-gradient(180deg, #020516 0%, #070426 62%, #24004d 100%);
+}
+/* Synthwave perspective grid at bottom */
+body[data-skin="dark-neon"]::after{
+  content:'';position:fixed;bottom:0;left:0;right:0;height:220px;z-index:-1;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 220' preserveAspectRatio='none'%3E%3Cg stroke='%23ff4bd8' stroke-opacity='.5' stroke-width='1' fill='none'%3E%3Cline x1='960' y1='0' x2='-440' y2='220'/%3E%3Cline x1='960' y1='0' x2='-230' y2='220'/%3E%3Cline x1='960' y1='0' x2='-20' y2='220'/%3E%3Cline x1='960' y1='0' x2='120' y2='220'/%3E%3Cline x1='960' y1='0' x2='260' y2='220'/%3E%3Cline x1='960' y1='0' x2='400' y2='220'/%3E%3Cline x1='960' y1='0' x2='540' y2='220'/%3E%3Cline x1='960' y1='0' x2='680' y2='220'/%3E%3Cline x1='960' y1='0' x2='820' y2='220'/%3E%3Cline x1='960' y1='0' x2='960' y2='220'/%3E%3Cline x1='960' y1='0' x2='1100' y2='220'/%3E%3Cline x1='960' y1='0' x2='1240' y2='220'/%3E%3Cline x1='960' y1='0' x2='1380' y2='220'/%3E%3Cline x1='960' y1='0' x2='1520' y2='220'/%3E%3Cline x1='960' y1='0' x2='1660' y2='220'/%3E%3Cline x1='960' y1='0' x2='1800' y2='220'/%3E%3Cline x1='960' y1='0' x2='1940' y2='220'/%3E%3Cline x1='960' y1='0' x2='2150' y2='220'/%3E%3Cline x1='960' y1='0' x2='2360' y2='220'/%3E%3C/g%3E%3Cg stroke='%23ff4bd8' fill='none'%3E%3Cline x1='0' y1='0' x2='1920' y2='0' stroke-opacity='.55'/%3E%3Cline x1='0' y1='13' x2='1920' y2='13' stroke-opacity='.52'/%3E%3Cline x1='0' y1='28' x2='1920' y2='28' stroke-opacity='.48'/%3E%3Cline x1='0' y1='46' x2='1920' y2='46' stroke-opacity='.44'/%3E%3Cline x1='0' y1='67' x2='1920' y2='67' stroke-opacity='.40'/%3E%3Cline x1='0' y1='91' x2='1920' y2='91' stroke-opacity='.36'/%3E%3Cline x1='0' y1='118' x2='1920' y2='118' stroke-opacity='.32'/%3E%3Cline x1='0' y1='148' x2='1920' y2='148' stroke-opacity='.28'/%3E%3Cline x1='0' y1='182' x2='1920' y2='182' stroke-opacity='.24'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:100% 100%;
+}
+
+/* Hide Guggenheim art in this skin */
+body[data-skin="dark-neon"] #lgArtBackground{display:none!important}
+body[data-skin="dark-neon"] #lgArtAttribution{display:none!important}
+body[data-skin="dark-neon"].lg-art-on{background-image:none!important}
+
+/* ── Header ── */
+body[data-skin="dark-neon"] .header{
+  background:rgba(3,8,23,.97);
+  border-bottom:1px solid rgba(255,75,216,.28);
+  box-shadow:0 1px 24px rgba(255,75,216,.10);
+}
+body[data-skin="dark-neon"] .logo{
+  color:#ff4bd8;
+  letter-spacing:2px;
+  text-shadow:0 0 16px rgba(255,75,216,.65);
+}
+body[data-skin="dark-neon"] .logo .dot{
+  background:#00f5ff;
+  box-shadow:0 0 8px #00f5ff,0 0 20px rgba(0,245,255,.55);
+}
+body[data-skin="dark-neon"] .board-switcher{color:#f8fafc}
+body[data-skin="dark-neon"] .board-switcher:hover{background:rgba(255,75,216,.08)}
+body[data-skin="dark-neon"] .board-switcher.open{background:rgba(255,75,216,.1)}
+body[data-skin="dark-neon"] #matryoshkaHomeBtn{
+  color:#00f5ff;border-color:rgba(0,245,255,.45);
+  box-shadow:0 0 8px rgba(0,245,255,.25);
+}
+body[data-skin="dark-neon"] #matryoshkaHomeBtn.active{
+  background:rgba(0,245,255,.1);border-color:#00f5ff;
+  box-shadow:0 0 14px rgba(0,245,255,.5);
+}
+body[data-skin="dark-neon"] #skinPickerBtn{color:#9ba8bf}
+body[data-skin="dark-neon"] #skinPickerBtn:hover{color:#f8fafc;background:rgba(255,75,216,.08)}
+body[data-skin="dark-neon"] .sync-status{color:#9ba8bf}
+
+/* ── Sidebar ── */
+body[data-skin="dark-neon"] .sidebar{
+  background:rgba(3,8,23,.97);
+  border-right:1px solid rgba(255,75,216,.18);
+}
+body[data-skin="dark-neon"] .sidebar-title{color:#9ba8bf;letter-spacing:.08em}
+body[data-skin="dark-neon"] .sidebar-foot{border-top-color:rgba(255,75,216,.15)}
+body[data-skin="dark-neon"] .tab-icon-wrap{
+  background:rgba(6,16,38,.9);
+  border-color:rgba(255,75,216,.22);
+  box-shadow:none;
+}
+body[data-skin="dark-neon"] .tab-btn:hover .tab-icon-wrap{
+  box-shadow:0 0 10px rgba(255,75,216,.25);
+  border-color:rgba(255,75,216,.45);
+  transform:translateY(-1px);
+}
+body[data-skin="dark-neon"] .tab-btn.active .tab-icon-wrap{
+  background:rgba(6,16,38,.95);
+  border-color:#ff4bd8;
+  box-shadow:0 0 10px rgba(255,75,216,.6),0 0 24px rgba(255,75,216,.3);
+}
+body[data-skin="dark-neon"] .tab-btn.active .tab-icon{background:#ff4bd8!important;box-shadow:0 0 8px rgba(255,75,216,.9)}
+body[data-skin="dark-neon"] .tab-icon{box-shadow:none}
+body[data-skin="dark-neon"] .tab-icon.c-internal{background:#ffd21f;box-shadow:0 0 6px rgba(255,210,31,.5)}
+body[data-skin="dark-neon"] .tab-icon.c-client{background:#ff4bd8;box-shadow:0 0 6px rgba(255,75,216,.5)}
+body[data-skin="dark-neon"] .tab-icon.c-bd{background:#00f5ff;box-shadow:0 0 6px rgba(0,245,255,.5)}
+body[data-skin="dark-neon"] .tab-icon.c-navy{background:#a855f7;box-shadow:0 0 6px rgba(168,85,247,.5)}
+body[data-skin="dark-neon"] .tab-icon.c-white{background:#f8fafc;box-shadow:none}
+body[data-skin="dark-neon"] .tab-label{color:#f8fafc}
+body[data-skin="dark-neon"] .tab-btn.tab-archive .tab-label{color:#9ba8bf}
+body[data-skin="dark-neon"] .tab-badge{background:#ff4bd8;color:#020516}
+
+/* ── New list button ── */
+body[data-skin="dark-neon"] .sidebar-add-list{
+  background:rgba(255,75,216,.08)!important;
+  border-color:rgba(255,75,216,.35)!important;
+  color:#ff4bd8!important;
+  border-radius:8px;
+}
+body[data-skin="dark-neon"] .sidebar-add-list:hover{
+  background:rgba(255,75,216,.16)!important;
+  box-shadow:0 0 12px rgba(255,75,216,.3);
+}
+
+/* ── Section card (list panel) ── */
+body[data-skin="dark-neon"] .section-card{
+  background:rgba(6,16,38,.90);
+  border:1px solid rgba(255,75,216,.28);
+  border-radius:14px;
+  box-shadow:0 0 0 1px rgba(255,75,216,.08),0 0 28px rgba(255,75,216,.10),0 18px 60px rgba(0,0,0,.45);
+}
+/* Rotate neon border color per column */
+body[data-skin="dark-neon"] .section-card:nth-child(4n+1){border-color:rgba(255,75,216,.32);box-shadow:0 0 0 1px rgba(255,75,216,.1),0 0 28px rgba(255,75,216,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .section-card:nth-child(4n+2){border-color:rgba(0,245,255,.32);box-shadow:0 0 0 1px rgba(0,245,255,.1),0 0 28px rgba(0,245,255,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .section-card:nth-child(4n+3){border-color:rgba(168,85,247,.32);box-shadow:0 0 0 1px rgba(168,85,247,.1),0 0 28px rgba(168,85,247,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .section-card:nth-child(4n+0){border-color:rgba(45,156,255,.32);box-shadow:0 0 0 1px rgba(45,156,255,.1),0 0 28px rgba(45,156,255,.12),0 18px 60px rgba(0,0,0,.45)}
+
+/* Section head */
+body[data-skin="dark-neon"] .section-head{border-bottom:1px solid rgba(255,75,216,.12)}
+body[data-skin="dark-neon"] .section-title{color:#f8fafc;font-weight:700}
+body[data-skin="dark-neon"] .section-icon{box-shadow:0 0 8px currentColor}
+
+/* ── Table ── */
+body[data-skin="dark-neon"] .tbl{
+  background:transparent;
+  border-color:rgba(255,75,216,.12);
+}
+body[data-skin="dark-neon"] .tbl thead th{
+  background:rgba(3,8,23,.5);
+  color:#9ba8bf;
+  border-bottom-color:rgba(255,75,216,.14);
+  letter-spacing:.06em;
+}
+body[data-skin="dark-neon"] .tbl thead th:hover{background:rgba(255,75,216,.05)}
+body[data-skin="dark-neon"] .tbl thead th .th-label{color:#9ba8bf}
+body[data-skin="dark-neon"] .tbl tbody tr{border-bottom-color:rgba(255,75,216,.07)}
+body[data-skin="dark-neon"] .tbl tbody tr:hover{background:rgba(255,75,216,.04)}
+body[data-skin="dark-neon"] .tbl tbody tr.row-drop-above{box-shadow:inset 0 2px 0 #00f5ff}
+body[data-skin="dark-neon"] .tbl tbody tr.row-drop-below{box-shadow:inset 0 -2px 0 #00f5ff}
+body[data-skin="dark-neon"] .tbl td{color:#f8fafc;border-bottom-color:rgba(255,75,216,.07)}
+body[data-skin="dark-neon"] .tbl td.cell-edit{color:#f8fafc}
+body[data-skin="dark-neon"] .tbl tr.row-done td.cell-edit{color:#9ba8bf}
+body[data-skin="dark-neon"] .tbl thead th.col-drop-before{box-shadow:inset 4px 0 0 0 #00f5ff}
+body[data-skin="dark-neon"] .tbl thead th.col-drop-after{box-shadow:inset -4px 0 0 0 #00f5ff}
+
+/* ── Section add-row area ── */
+body[data-skin="dark-neon"] #addRowBtn,
+body[data-skin="dark-neon"] #addColBtn,
+body[data-skin="dark-neon"] #sectionMenuBtn{
+  color:#9ba8bf;background:transparent;border-color:rgba(255,75,216,.2);
+}
+body[data-skin="dark-neon"] #addRowBtn:hover,
+body[data-skin="dark-neon"] #addColBtn:hover,
+body[data-skin="dark-neon"] #sectionMenuBtn:hover{
+  color:#ff4bd8;background:rgba(255,75,216,.08);border-color:rgba(255,75,216,.4);
+}
+
+/* Matryoshka add-row strip */
+body[data-skin="dark-neon"] .matryoshka-add-row{border-top-color:rgba(255,75,216,.12)}
+body[data-skin="dark-neon"] .matryoshka-add-row span{color:#9ba8bf}
+body[data-skin="dark-neon"] .matryoshka-add-row button{color:#9ba8bf}
+body[data-skin="dark-neon"] .matryoshka-add-row button:hover{color:#ff4bd8}
+
+/* ── Matryoshka Home cards ── */
+body[data-skin="dark-neon"] .matryoshka-card{
+  background:rgba(6,16,38,.92);
+  border-color:rgba(255,75,216,.28);
+  box-shadow:0 0 20px rgba(255,75,216,.10),0 8px 32px rgba(0,0,0,.45);
+}
+body[data-skin="dark-neon"] .matryoshka-card-head{
+  border-bottom-color:rgba(255,75,216,.15);
+}
+body[data-skin="dark-neon"] .mhome-resize{
+  background:linear-gradient(135deg,transparent 50%,rgba(0,245,255,.6) 50%,rgba(0,245,255,.6) 60%,transparent 60%,transparent 70%,rgba(0,245,255,.6) 70%,rgba(0,245,255,.6) 80%,transparent 80%);
+}
+/* Cycle neon borders on matryoshka home cards too */
+body[data-skin="dark-neon"] .matryoshka-card:nth-child(4n+1){border-color:rgba(255,75,216,.35)}
+body[data-skin="dark-neon"] .matryoshka-card:nth-child(4n+2){border-color:rgba(0,245,255,.35)}
+body[data-skin="dark-neon"] .matryoshka-card:nth-child(4n+3){border-color:rgba(168,85,247,.35)}
+body[data-skin="dark-neon"] .matryoshka-card:nth-child(4n+0){border-color:rgba(45,156,255,.35)}
+
+/* Matryoshka Home toolbar */
+body[data-skin="dark-neon"] .home-mode-toggle{
+  background:rgba(3,8,23,.97);
+  border-color:rgba(255,75,216,.28);
+  box-shadow:0 0 16px rgba(255,75,216,.12);
+}
+body[data-skin="dark-neon"] .home-mode-toggle button{color:#9ba8bf;border-color:rgba(255,75,216,.18)}
+body[data-skin="dark-neon"] .home-mode-toggle button:hover{color:#f8fafc;background:rgba(255,75,216,.08)}
+body[data-skin="dark-neon"] .home-mode-toggle button.active{color:#ff4bd8;background:rgba(255,75,216,.1);border-color:rgba(255,75,216,.4)}
+
+/* ── Floating menus (board switcher, skin picker) ── */
+body[data-skin="dark-neon"] .board-menu{
+  background:#061026;border-color:rgba(255,75,216,.32);
+  box-shadow:0 10px 44px rgba(0,0,0,.7),0 0 20px rgba(255,75,216,.1);
+}
+body[data-skin="dark-neon"] .board-menu-item{color:#f8fafc}
+body[data-skin="dark-neon"] .board-menu-item:hover{background:rgba(255,75,216,.08)}
+body[data-skin="dark-neon"] .board-menu-item.active{background:rgba(255,75,216,.12)}
+body[data-skin="dark-neon"] .board-menu-item .check{color:#ff4bd8}
+body[data-skin="dark-neon"] .board-menu-sep{background:rgba(255,75,216,.14)}
+body[data-skin="dark-neon"] .board-menu-add{color:#00f5ff;border-color:rgba(0,245,255,.3)}
+body[data-skin="dark-neon"] .board-menu-add:hover{background:rgba(0,245,255,.06);border-color:rgba(0,245,255,.5)}
+body[data-skin="dark-neon"] .skin-menu{
+  background:#061026;border-color:rgba(255,75,216,.32);
+  box-shadow:0 10px 44px rgba(0,0,0,.7),0 0 20px rgba(255,75,216,.1);
+}
+body[data-skin="dark-neon"] .skin-menu-title{color:#9ba8bf}
+body[data-skin="dark-neon"] .skin-item{color:#f8fafc}
+body[data-skin="dark-neon"] .skin-item:hover{background:rgba(255,75,216,.08)}
+body[data-skin="dark-neon"] .skin-item.active{background:rgba(255,75,216,.12)}
+body[data-skin="dark-neon"] .skin-item.active .skin-item-name{color:#ff4bd8}
+body[data-skin="dark-neon"] .skin-check{color:#ff4bd8}
+
+/* ── Popover / floating row menus ── */
+body[data-skin="dark-neon"] .popover,
+body[data-skin="dark-neon"] .floating-menu,
+body[data-skin="dark-neon"] .row-menu,
+body[data-skin="dark-neon"] .section-menu{
+  background:#061026!important;border-color:rgba(255,75,216,.32)!important;
+  box-shadow:0 10px 44px rgba(0,0,0,.7),0 0 16px rgba(255,75,216,.08)!important;
+  color:#f8fafc!important;
+}
+
+/* ── Board cards (the floating/stacked list cards in board canvas) ── */
+body[data-skin="dark-neon"] .board-card{
+  background:rgba(6,16,38,.90);
+  border-color:rgba(255,75,216,.22);
+  box-shadow:0 0 0 1px rgba(255,75,216,.08),0 0 24px rgba(255,75,216,.10),0 18px 60px rgba(0,0,0,.45);
+  border-left:none;
+}
+/* Neon left accent per color class */
+body[data-skin="dark-neon"] .board-card.bc-internal{border-top:2px solid #ffd21f;box-shadow:0 0 0 1px rgba(255,210,31,.08),0 0 24px rgba(255,210,31,.08),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .board-card.bc-client{border-top:2px solid #ff4bd8;box-shadow:0 0 0 1px rgba(255,75,216,.1),0 0 24px rgba(255,75,216,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .board-card.bc-bd{border-top:2px solid #00f5ff;box-shadow:0 0 0 1px rgba(0,245,255,.1),0 0 24px rgba(0,245,255,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .board-card.bc-navy{border-top:2px solid #a855f7;box-shadow:0 0 0 1px rgba(168,85,247,.1),0 0 24px rgba(168,85,247,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .board-card-title{color:#f8fafc}
+body[data-skin="dark-neon"] .board-card-head{border-bottom:1px solid rgba(255,75,216,.1)}
+body[data-skin="dark-neon"] .board-card-count{color:#9ba8bf;background:rgba(255,75,216,.1);border-color:rgba(255,75,216,.25)}
+/* Board card controls (hover toolbar) */
+body[data-skin="dark-neon"] .board-card-controls{background:rgba(6,16,38,.95)!important;border-color:rgba(255,75,216,.28)!important;box-shadow:0 2px 16px rgba(0,0,0,.4)!important}
+body[data-skin="dark-neon"] .board-card-controls .ctl{color:#9ba8bf!important}
+body[data-skin="dark-neon"] .board-card-controls .ctl:hover{color:#ff4bd8!important;background:rgba(255,75,216,.1)!important}
+/* Board canvas toolbar */
+body[data-skin="dark-neon"] #boardCanvasToolbar,
+body[data-skin="dark-neon"] .board-canvas-toolbar{
+  background:rgba(3,8,23,.97);
+  border-color:rgba(255,75,216,.28);
+  box-shadow:0 0 16px rgba(255,75,216,.12);
+}
+body[data-skin="dark-neon"] #boardCanvasToolbar button,
+body[data-skin="dark-neon"] .board-canvas-toolbar button{color:#9ba8bf;border-color:rgba(255,75,216,.18)}
+body[data-skin="dark-neon"] #boardCanvasToolbar button:hover,
+body[data-skin="dark-neon"] .board-canvas-toolbar button:hover{color:#f8fafc;background:rgba(255,75,216,.08)}
+body[data-skin="dark-neon"] #boardCanvasToolbar button.active,
+body[data-skin="dark-neon"] .board-canvas-toolbar button.active{color:#ff4bd8;background:rgba(255,75,216,.1);border-color:rgba(255,75,216,.4)}
+
+/* ── Brand corner (logo watermark) ── */
+body[data-skin="dark-neon"] #lgBrandCorner{opacity:.5}
+
+/* ── Reduce motion ── */
+@media(prefers-reduced-motion:reduce){
+  body[data-skin="dark-neon"] .tab-btn:hover .tab-icon-wrap{transform:none}
+  body[data-skin="dark-neon"] #lgArtBackground{transition:none}
+}
+
 html,body{height:100%}
 /* Guggenheim daily-art background: full-bleed image behind everything, faded
    so it reads as ambient backdrop and doesn't compete with the tracker. */
@@ -3542,6 +3818,11 @@ const SKINS = [
     id: 'simple',
     name: 'Simple',
     swatches: ['#f6f2eb','#252f7c','#ec058c','#2bb1e6'],
+  },
+  {
+    id: 'dark-neon',
+    name: '80s Dark',
+    swatches: ['#020516','#ff4bd8','#00f5ff','#a855f7'],
   },
 ];
 
