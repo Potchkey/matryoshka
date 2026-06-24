@@ -1188,6 +1188,40 @@ body.lg-gated #lgArtAttribution{display:none!important}
 #lgSignInBtn:hover{background:rgba(255,75,216,.2);box-shadow:0 0 22px rgba(255,75,216,.4)}
 #lgSignInBtn::before{content:'G';display:inline-block;width:20px;height:20px;border-radius:50%;
   background:#fff;color:#4285f4;font-weight:700;font-size:12px;line-height:20px;text-align:center;flex-shrink:0}
+
+/* ── Share modal ─────────────────────────────────────────────────────────── */
+#lgShareModal{display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(4px)}
+#lgShareModal.visible{display:flex}
+.lg-share-box{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  box-shadow:0 8px 40px rgba(0,0,0,.22);width:min(480px,92vw);max-height:80vh;display:flex;flex-direction:column}
+.lg-share-header{display:flex;align-items:center;padding:16px 20px 14px;border-bottom:1px solid var(--border);gap:8px}
+.lg-share-title{font-size:14px;font-weight:600;color:var(--text);flex:1}
+.lg-share-close{background:transparent;border:none;font-size:18px;color:var(--muted);cursor:pointer;padding:2px 6px;line-height:1}
+.lg-share-close:hover{color:var(--text)}
+.lg-share-body{padding:18px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.lg-share-label{font-size:12px;color:var(--muted);margin:0 0 6px}
+.lg-share-link-area{display:flex;gap:8px;align-items:center}
+.lg-share-link-area input{flex:1;font-size:12px;font-family:ui-monospace,Menlo,monospace;padding:7px 10px;
+  border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);min-width:0}
+.lg-share-link-area button,.lg-share-revoke{font-size:12px;padding:6px 12px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--border);background:var(--card);color:var(--text);white-space:nowrap}
+.lg-share-link-area button:hover,.lg-share-revoke:hover{border-color:var(--lg-blue);color:var(--lg-blue)}
+.lg-share-collab-list{display:flex;flex-direction:column;gap:6px;min-height:32px}
+.lg-share-collab{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;
+  background:var(--bg);border-radius:7px;border:1px solid var(--border);font-size:12px;gap:8px}
+.lg-share-collab-info{display:flex;align-items:center;gap:8px;color:var(--text)}
+.lg-share-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600}
+.lg-share-badge.accepted{background:rgba(16,185,129,.15);color:#10b981}
+.lg-share-badge.pending{background:rgba(234,179,8,.15);color:#ca8a04}
+.lg-share-empty,.lg-share-loading{font-size:12px;color:var(--muted);padding:8px 0}
+
+/* ── SHARED WITH ME sidebar section ─────────────────────────────────────── */
+.sidebar-group.sidebar-shared{color:var(--lg-cyan);font-size:10px;letter-spacing:.08em;margin-top:4px}
+.tab-btn.tab-shared .tab-icon{background:var(--lg-cyan)!important}
+.tab-btn.tab-shared.active{background:rgba(6,182,212,.12)}
+#shareBtn{color:var(--lg-cyan)!important;border-color:var(--lg-cyan)!important}
+#shareBtn:hover{background:rgba(6,182,212,.1)!important}
 </style>
 </head>
 <body>
@@ -1315,6 +1349,21 @@ body.lg-gated #lgArtAttribution{display:none!important}
     <button id="lgSignInBtn" type="button">Sign in with Google</button>
   </div>
 </div>
+
+<div id="lgShareModal" onclick="if(event.target===this)closeShareModal()">
+  <div class="lg-share-box">
+    <div class="lg-share-header">
+      <span class="lg-share-title">Share: <strong id="lgShareBoardName"></strong></span>
+      <button class="lg-share-close" onclick="closeShareModal()">×</button>
+    </div>
+    <div class="lg-share-body">
+      <p class="lg-share-label">Invite link — anyone with this link can view and edit this list in real time:</p>
+      <div id="lgShareLinkArea" class="lg-share-link-area"></div>
+      <p class="lg-share-label" style="margin-top:18px">Collaborators:</p>
+      <div id="lgShareCollabList" class="lg-share-collab-list"></div>
+    </div>
+  </div>
+</div>
 <script>
 window.__lgAuth = {
   ready: false,
@@ -1369,6 +1418,7 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
         <div class="section-actions">
           <button id="addRowBtn" onclick="addRow()">+ Add row</button>
           <button id="addColBtn" title="Add a new column to this list">+ Add column</button>
+          <button id="shareBtn" title="Share this list" onclick="openShareModal(state.activeTab)" style="display:none">Share</button>
           <button id="sectionMenuBtn" title="List options">⋯</button>
         </div>
       </div>
@@ -1489,6 +1539,22 @@ async function bootAppForSession(session){
   const found = await pullStateFromCloud();
   if (found) render(); else pushStateToCloud();
   subscribeRealtime();
+  // Load sharing state (boards shared with me, boards I've shared)
+  await loadSharingState();
+  subscribeSharedBoards();
+  // If there's an invite token in the URL, redeem it, then navigate to the shared board
+  const inviteToken = new URLSearchParams(location.search).get('invite');
+  if (inviteToken) {
+    const redeemed = await redeemInviteToken(inviteToken);
+    // Clean the token from the URL without a reload
+    const clean = location.pathname + (location.search.replace(/[?&]invite=[^&]*/,'').replace(/^&/,'?') || '');
+    history.replaceState(null, '', clean);
+    if (redeemed) {
+      // Find the board we just got access to and switch to it
+      const board = Object.values(_sharedWithMe)[0];
+      if (board) { switchToSharedBoard(board.boardKey, board.ownerId); return; }
+    }
+  }
   if (typeof maybeSeedMechanicsListOnce === 'function') maybeSeedMechanicsListOnce();
 }
 
@@ -1952,7 +2018,14 @@ async function pushStateToCloud() {
   if (!supa || applyingRemote) return;
   if (window.__lgVersionOutdated) return;
   // Don't push UI-only prefs; everyone has their own canvas layout AND their own active workspace
-  const { boardPos, boardSize, sectionSize, activeTab, activeBoardId, homeViewMode, boardZoom, preferredLayout, collapsedRows, boardCollapsed, bgGuggenheim, ...sharedState } = state;
+  const { boardPos, boardSize, sectionSize, activeTab, activeBoardId, homeViewMode, boardZoom, preferredLayout, collapsedRows, boardCollapsed, bgGuggenheim, activeSharedBoard, ...sharedState } = state;
+  // Strip any synthetic __sb_ tab data from sharedState before pushing (per-session runtime only)
+  for (const k of Object.keys(sharedState.rows || {})) { if (k.startsWith('__sb_')) delete sharedState.rows[k]; }
+  for (const k of Object.keys(sharedState.titles || {})) { if (k.startsWith('__sb_')) delete sharedState.titles[k]; }
+  for (const k of Object.keys(sharedState.headers || {})) { if (k.startsWith('__sb_')) delete sharedState.headers[k]; }
+  for (const k of Object.keys(sharedState.colWidths || {})) { if (k.startsWith('__sb_')) delete sharedState.colWidths[k]; }
+  for (const k of Object.keys(sharedState.userColumns || {})) { if (k.startsWith('__sb_')) delete sharedState.userColumns[k]; }
+  for (const k of Object.keys(sharedState.colOrder || {})) { if (k.startsWith('__sb_')) delete sharedState.colOrder[k]; }
   // Capture the previous push for the audit-log diff, before we mutate sharedState.
   let prevShared = null;
   if (lastPushedJson){
@@ -2138,7 +2211,9 @@ function flushOnUnload(){
     if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_PROJECT_ID')) return;
     const ownerId = window.__lgAuth?.user?.id;
     if (!ownerId) return;
-    const { boardPos, boardSize, sectionSize, activeTab, activeBoardId, homeViewMode, boardZoom, preferredLayout, collapsedRows, boardCollapsed, bgGuggenheim, ...sharedState } = state;
+    const { boardPos, boardSize, sectionSize, activeTab, activeBoardId, homeViewMode, boardZoom, preferredLayout, collapsedRows, boardCollapsed, bgGuggenheim, activeSharedBoard: _asb, ...sharedState } = state;
+    for (const k of Object.keys(sharedState.rows || {})) { if (k.startsWith('__sb_')) delete sharedState.rows[k]; }
+    for (const k of Object.keys(sharedState.titles || {})) { if (k.startsWith('__sb_')) delete sharedState.titles[k]; }
     // Use Supabase REST API with keepalive so this survives page unload
     fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
       method: 'POST',
@@ -2887,6 +2962,260 @@ function subscribeRealtime(){
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// BOARD SHARING — invite-based per-board real-time collaboration
+// Tables: shared_boards (board data per owner), board_invites (access tokens)
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _sharedWithMe = {};    // key = 'boardKey:ownerId' → { boardKey, ownerId, data, updatedAt }
+let _mySharedKeys = new Set(); // board keys I own that have at least one accepted invite
+
+function _sbKey(boardKey, ownerId){ return `${boardKey}:${ownerId}`; }
+
+function _extractBoardData(tabKey) {
+  return {
+    rows:        (state.rows        || {})[tabKey] || [],
+    title:       (state.titles      || {})[tabKey] || tabKey,
+    headers:     (state.headers     || {})[tabKey] || {},
+    colWidths:   (state.colWidths   || {})[tabKey] || {},
+    userColumns: (state.userColumns || {})[tabKey] || [],
+    colOrder:    (state.colOrder    || {})[tabKey] || [],
+  };
+}
+
+async function loadSharingState() {
+  if (!supa || !window.__lgAuth.user) return;
+  const userId = window.__lgAuth.user.id;
+  try {
+    const { data: myInvites } = await supa.from('board_invites')
+      .select('board_key')
+      .eq('owner_id', userId)
+      .not('accepted_at', 'is', null);
+    _mySharedKeys = new Set((myInvites || []).map(r => r.board_key));
+
+    const { data: accessible } = await supa.from('shared_boards')
+      .select('board_key, owner_id, data, updated_at')
+      .neq('owner_id', userId);
+    _sharedWithMe = {};
+    for (const b of (accessible || [])) {
+      _sharedWithMe[_sbKey(b.board_key, b.owner_id)] = {
+        boardKey: b.board_key, ownerId: b.owner_id,
+        data: b.data || {}, updatedAt: b.updated_at,
+      };
+    }
+    renderTabs();
+  } catch(e) { console.warn('loadSharingState failed', e); }
+}
+
+async function pushSharedBoard(boardKey) {
+  if (!supa || !_mySharedKeys.has(boardKey)) return;
+  const userId = window.__lgAuth.user?.id;
+  if (!userId) return;
+  try {
+    await supa.from('shared_boards').upsert({
+      board_key: boardKey, owner_id: userId,
+      data: _extractBoardData(boardKey),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'board_key,owner_id' });
+  } catch(e) { console.warn('pushSharedBoard failed', e); }
+}
+
+async function pushCollaboratorEdit(boardKey, ownerId, data) {
+  if (!supa) return;
+  try {
+    await supa.from('shared_boards').update({
+      data: data, updated_at: new Date().toISOString(),
+    }).eq('board_key', boardKey).eq('owner_id', ownerId);
+  } catch(e) { console.warn('pushCollaboratorEdit failed', e); }
+}
+
+async function createInvite(boardKey) {
+  const userId = window.__lgAuth.user?.id;
+  if (!userId || !supa) return null;
+  try {
+    await supa.from('shared_boards').upsert({
+      board_key: boardKey, owner_id: userId,
+      data: _extractBoardData(boardKey),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'board_key,owner_id' });
+    const { data, error } = await supa.from('board_invites')
+      .insert({ board_key: boardKey, owner_id: userId })
+      .select('token').single();
+    if (error || !data) { console.warn('createInvite error', error); return null; }
+    _mySharedKeys.add(boardKey);
+    return `${location.origin}${location.pathname}?invite=${data.token}`;
+  } catch(e) { console.warn('createInvite threw', e); return null; }
+}
+
+async function getBoardCollaborators(boardKey) {
+  const userId = window.__lgAuth.user?.id;
+  if (!userId || !supa) return [];
+  const { data } = await supa.from('board_invites')
+    .select('id, token, invitee_user_id, invited_at, accepted_at, label')
+    .eq('board_key', boardKey).eq('owner_id', userId)
+    .order('invited_at', { ascending: false });
+  return data || [];
+}
+
+async function revokeInvite(inviteId) {
+  if (!supa) return;
+  await supa.from('board_invites').delete().eq('id', inviteId);
+  await loadSharingState();
+}
+
+async function redeemInviteToken(token) {
+  if (!supa || !window.__lgAuth.user) return false;
+  const userId = window.__lgAuth.user.id;
+  try {
+    const { data: invite, error } = await supa.from('board_invites')
+      .select('id, board_key, owner_id, invitee_user_id, accepted_at')
+      .eq('token', token).single();
+    if (error || !invite) return false;
+    if (!invite.accepted_at) {
+      const { error: upErr } = await supa.from('board_invites')
+        .update({ invitee_user_id: userId, accepted_at: new Date().toISOString() })
+        .eq('token', token);
+      if (upErr) { console.warn('redeemInviteToken error', upErr); return false; }
+    }
+    await loadSharingState();
+    return true;
+  } catch(e) { console.warn('redeemInviteToken threw', e); return false; }
+}
+
+function subscribeSharedBoards() {
+  if (!supa) return;
+  const userId = window.__lgAuth.user?.id;
+  if (!userId) return;
+  supa.channel('shared_boards_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_boards' }, payload => {
+      if (!payload?.new) return;
+      const { board_key, owner_id, data } = payload.new;
+      if (!board_key || !owner_id) return;
+      if (owner_id === userId) {
+        // A collaborator edited one of my boards — apply to my local state if not editing
+        if (!isUserCurrentlyEditing()) _applyCollabUpdateToOwner(board_key, data);
+      } else {
+        // A board shared with me was updated — refresh cache and re-render if viewing
+        const key = _sbKey(board_key, owner_id);
+        if (_sharedWithMe[key]) {
+          _sharedWithMe[key].data = data;
+          const tabKey = '__sb_' + board_key + '_' + owner_id.slice(0,8);
+          if (state.activeTab === tabKey && !isUserCurrentlyEditing()) {
+            _injectSharedBoardIntoState(board_key, owner_id);
+            render();
+          }
+        }
+      }
+    })
+    .subscribe();
+}
+
+function _applyCollabUpdateToOwner(boardKey, newData) {
+  if (!newData) return;
+  applyingRemote = true;
+  try {
+    if (newData.rows        !== undefined) { state.rows = state.rows || {};         state.rows[boardKey]        = newData.rows; }
+    if (newData.title       !== undefined) { state.titles = state.titles || {};     state.titles[boardKey]      = newData.title; }
+    if (newData.headers     !== undefined) { state.headers = state.headers || {};   state.headers[boardKey]     = newData.headers; }
+    if (newData.colWidths   !== undefined) { state.colWidths = state.colWidths||{}; state.colWidths[boardKey]   = newData.colWidths; }
+    if (newData.userColumns !== undefined) { state.userColumns=state.userColumns||{};state.userColumns[boardKey]= newData.userColumns; }
+    if (newData.colOrder    !== undefined) { state.colOrder=state.colOrder||{};     state.colOrder[boardKey]    = newData.colOrder; }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(_) {}
+    if (state.activeTab === boardKey) render();
+  } finally { applyingRemote = false; }
+}
+
+function _injectSharedBoardIntoState(boardKey, ownerId) {
+  const ref = _sbKey(boardKey, ownerId);
+  const board = _sharedWithMe[ref];
+  if (!board) return;
+  const tabKey = '__sb_' + boardKey + '_' + ownerId.slice(0,8);
+  const d = board.data;
+  state.rows        = state.rows || {};
+  state.titles      = state.titles || {};
+  state.headers     = state.headers || {};
+  state.colWidths   = state.colWidths || {};
+  state.userColumns = state.userColumns || {};
+  state.colOrder    = state.colOrder || {};
+  state.rows[tabKey]        = JSON.parse(JSON.stringify(d.rows || []));
+  state.titles[tabKey]      = d.title || boardKey;
+  state.headers[tabKey]     = JSON.parse(JSON.stringify(d.headers || {}));
+  state.colWidths[tabKey]   = JSON.parse(JSON.stringify(d.colWidths || {}));
+  state.userColumns[tabKey] = JSON.parse(JSON.stringify(d.userColumns || []));
+  state.colOrder[tabKey]    = JSON.parse(JSON.stringify(d.colOrder || []));
+  // Register a synthetic SCHEMAS entry so getColumns() and renderSection() work
+  const baseKey = boardKey;
+  SCHEMAS[tabKey] = SCHEMAS[baseKey] || { label: d.title || boardKey, color: 'bc-client', columns: [] };
+}
+
+function switchToSharedBoard(boardKey, ownerId) {
+  const ref = _sbKey(boardKey, ownerId);
+  if (!_sharedWithMe[ref]) return;
+  const tabKey = '__sb_' + boardKey + '_' + ownerId.slice(0,8);
+  _injectSharedBoardIntoState(boardKey, ownerId);
+  state.activeSharedBoard = { boardKey, ownerId, tabKey };
+  state.activeTab = tabKey;
+  save();
+  render();
+}
+
+// ── Share modal ─────────────────────────────────────────────────────────────
+let _shareModalBoardKey = null;
+
+async function openShareModal(tabKey) {
+  // Resolve the actual boardKey (strip __sb_ prefix if somehow called on shared tab)
+  const boardKey = tabKey.startsWith('__sb_') ? state.activeSharedBoard?.boardKey : tabKey;
+  if (!boardKey || boardKey === 'home') return;
+  _shareModalBoardKey = boardKey;
+  const modal = document.getElementById('lgShareModal');
+  const titleEl = document.getElementById('lgShareBoardName');
+  const linkArea = document.getElementById('lgShareLinkArea');
+  const collabList = document.getElementById('lgShareCollabList');
+  if (!modal) return;
+  titleEl.textContent = state.titles[boardKey] || boardKey;
+  linkArea.textContent = 'Generating link…';
+  collabList.innerHTML = '<div class="lg-share-loading">Loading…</div>';
+  modal.classList.add('visible');
+  const link = await createInvite(boardKey);
+  if (link) {
+    linkArea.innerHTML = `<input id="lgShareLinkInput" readonly value="${escapeHtml(link)}" onclick="this.select()"><button onclick="copyShareLink()">Copy</button>`;
+  } else {
+    linkArea.textContent = 'Could not generate link. Make sure you are signed in.';
+  }
+  const collabs = await getBoardCollaborators(boardKey);
+  if (!collabs.length) {
+    collabList.innerHTML = '<div class="lg-share-empty">No collaborators yet — share the link above to invite someone.</div>';
+  } else {
+    collabList.innerHTML = collabs.map(c => `
+      <div class="lg-share-collab">
+        <span class="lg-share-collab-info">
+          ${escapeHtml(c.label || (c.invitee_user_id ? c.invitee_user_id.slice(0,8)+'…' : 'Pending'))}
+          ${c.accepted_at ? '<span class="lg-share-badge accepted">Active</span>' : '<span class="lg-share-badge pending">Pending</span>'}
+        </span>
+        <button class="lg-share-revoke" onclick="_revokeAndRefresh('${escapeHtml(c.id)}')">Revoke</button>
+      </div>`).join('');
+  }
+}
+
+async function _revokeAndRefresh(inviteId) {
+  await revokeInvite(inviteId);
+  if (_shareModalBoardKey) await openShareModal(_shareModalBoardKey);
+}
+
+function closeShareModal() {
+  document.getElementById('lgShareModal')?.classList.remove('visible');
+  _shareModalBoardKey = null;
+}
+
+function copyShareLink() {
+  const input = document.getElementById('lgShareLinkInput');
+  if (!input) return;
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = input.nextElementSibling;
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy'; }, 2000); }
+  });
+}
+
 // Built-in audit columns appended to every board
 const AUDIT_COLS = [
   {key:'dateAdded',    label:'Date added',    width:100, kind:'autoDate', readOnly:true},
@@ -3364,6 +3693,21 @@ function save(){
   // Suppressed while we're applying a remote update — those edits aren't user-driven.
   if (!applyingRemote) pendingLocalChanges = true;
   debouncedCloudPush();
+
+  // If the user is editing a shared board tab, debounce-push changes back to shared_boards.
+  if (!applyingRemote && state.activeSharedBoard && state.activeTab === state.activeSharedBoard.tabKey) {
+    const { boardKey, ownerId } = state.activeSharedBoard;
+    clearTimeout(window.__sbPushId);
+    window.__sbPushId = setTimeout(() => {
+      const data = _extractBoardData(state.activeSharedBoard.tabKey);
+      pushCollaboratorEdit(boardKey, ownerId, data);
+    }, 400);
+  }
+  // If the owner just edited a board they've shared, push update to shared_boards.
+  if (!applyingRemote && !state.activeSharedBoard && _mySharedKeys.has(state.activeTab)) {
+    clearTimeout(window.__ownerSbPushId);
+    window.__ownerSbPushId = setTimeout(() => pushSharedBoard(state.activeTab), 400);
+  }
 }
 
 /* ── BOARD (workspace) management ── */
@@ -4728,6 +5072,25 @@ function renderTabs(){
     const archKey = ARCHIVE_OF[liveKey];
     if(archKey) nav.appendChild(buildTabBtn(archKey, true));
   });
+
+  // SHARED WITH ME section
+  const sharedEntries = Object.values(_sharedWithMe);
+  if (sharedEntries.length) {
+    const sharedSep = document.createElement('div');
+    sharedSep.className = 'sidebar-group sidebar-shared';
+    sharedSep.textContent = 'Shared with me';
+    nav.appendChild(sharedSep);
+    sharedEntries.forEach(board => {
+      const tabKey = '__sb_' + board.boardKey + '_' + board.ownerId.slice(0,8);
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn tab-shared' + (state.activeTab === tabKey ? ' active' : '');
+      btn.dataset.tab = tabKey;
+      const label = board.data?.title || board.boardKey;
+      btn.innerHTML = `<span class="tab-icon-wrap"><span class="tab-icon"></span></span><span class="tab-label">${escapeHtml(label)}</span>`;
+      btn.addEventListener('click', () => switchToSharedBoard(board.boardKey, board.ownerId));
+      nav.appendChild(btn);
+    });
+  }
 }
 
 function buildTabBtn(tabKey, isArchive){
@@ -4763,8 +5126,14 @@ function renderSection(){
   // workspace (e.g. a key carried over from another workspace's saved state),
   // fall back to 'home' so we land on the canvas with the layout toolbar
   // instead of rendering an invalid list view.
-  if (state.activeTab && state.activeTab !== 'home' && !SCHEMAS[state.activeTab]){
+  // Exception: __sb_ tabs are synthetic shared-board views registered at switch time.
+  if (state.activeTab && state.activeTab !== 'home' && !SCHEMAS[state.activeTab] && !state.activeTab.startsWith('__sb_')){
+    state.activeSharedBoard = null;
     state.activeTab = 'home';
+  }
+  // If activeSharedBoard is set but the SCHEMAS entry is missing (e.g. after reload), re-inject.
+  if (state.activeSharedBoard && state.activeTab === state.activeSharedBoard.tabKey && !SCHEMAS[state.activeTab]) {
+    _injectSharedBoardIntoState(state.activeSharedBoard.boardKey, state.activeSharedBoard.ownerId);
   }
   const tab = state.activeTab;
   const titleEl = document.getElementById('sectionTitle');
@@ -4825,12 +5194,20 @@ function renderSection(){
   const cols = getColumns(tab);
   titleEl.textContent = state.titles[tab];
   titleEl.oninput = () => { state.titles[tab] = titleEl.textContent.trim() || sch.label; save(); renderTabs(); };
+  // Shared board tabs are read-only for the title and controlled by the collaborator flow
+  titleEl.contentEditable = state.activeSharedBoard ? 'false' : 'true';
   if(iconEl){ iconEl.className = 'section-icon ' + (sch.color || ''); }
   addBtn.style.display = '';
   const addColBtn = document.getElementById('addColBtn');
   if (addColBtn){
     addColBtn.style.display = '';
     addColBtn.onclick = (e) => { e.stopPropagation(); openAddColumnPicker(tab, addColBtn); };
+  }
+  // Show share button on live owner boards; hide it on shared/archive/home tabs
+  const shareBtn = document.getElementById('shareBtn');
+  if (shareBtn) {
+    const isOwnerLiveBoard = LIVE_BOARDS.includes(tab) && !state.activeSharedBoard;
+    shareBtn.style.display = isOwnerLiveBoard ? '' : 'none';
   }
   // Apply saved per-list width and height (or fall back to defaults)
   const card = document.getElementById('sectionCard');
