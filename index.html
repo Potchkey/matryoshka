@@ -27,7 +27,11 @@
   --row-hover:rgba(43,177,230,.06);
   --row-drop:rgba(43,177,230,.18);
   --dot:rgba(37,47,124,.16);
+  --header-bg:#fefefc;
+  --sidebar-bg:var(--bg);
 }
+/* ── SKINS ── each skin overrides only the variables it changes ── */
+/* Simple = defaults above, no overrides needed */
 html,body{height:100%}
 /* Guggenheim daily-art background: full-bleed image behind everything, faded
    so it reads as ambient backdrop and doesn't compete with the tracker. */
@@ -76,7 +80,7 @@ body{
 
 /* ── HEADER ── */
 .header-zone{display:none}
-.header{position:sticky;top:0;z-index:100;background:#fefefc;border-bottom:1px solid rgba(0,0,0,.04);padding:8px 18px;display:flex;align-items:center;gap:14px}
+.header{position:sticky;top:0;z-index:100;background:var(--header-bg);border-bottom:1px solid rgba(0,0,0,.04);padding:8px 18px;display:flex;align-items:center;gap:14px}
 .logo-img{height:30px;width:auto;display:block}
 .brand-icons{display:flex;align-items:center;gap:4px}
 .brand-icon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;cursor:pointer;transition:background .15s,transform .15s;text-decoration:none;background:transparent;border:none;padding:4px}
@@ -99,6 +103,19 @@ body{
 #matryoshkaHomeBtn{font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:inherit;padding:5px 10px;border-radius:7px;white-space:nowrap;letter-spacing:.01em}
 #matryoshkaHomeBtn:hover{background:rgba(37,47,124,.05);color:var(--text)}
 #matryoshkaHomeBtn.active{color:var(--lg-blue);background:rgba(37,47,124,.07)}
+#skinPickerBtn{font-size:12px;font-weight:500;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:inherit;padding:5px 10px;border-radius:7px;white-space:nowrap}
+#skinPickerBtn:hover{background:rgba(37,47,124,.05);color:var(--text)}
+#skinPickerBtn.open{color:var(--text);background:rgba(37,47,124,.06)}
+.skin-menu{position:fixed;background:var(--card);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 10px 32px rgba(37,47,124,.18);padding:10px;z-index:9999;min-width:200px}
+.skin-menu-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:2px 8px 8px}
+.skin-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;border:none;background:transparent;font-family:inherit;width:100%;text-align:left}
+.skin-item:hover{background:rgba(37,47,124,.05)}
+.skin-item.active{background:rgba(37,47,124,.07)}
+.skin-item-name{font-size:13px;font-weight:500;color:var(--text);flex:1}
+.skin-item.active .skin-item-name{font-weight:700;color:var(--lg-blue)}
+.skin-swatches{display:flex;gap:3px;flex-shrink:0}
+.skin-swatch{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,.1)}
+.skin-check{font-size:12px;color:var(--lg-blue);width:14px;text-align:center;flex-shrink:0}
 .board-menu{position:fixed;background:#fff;border:1px solid var(--border-strong);border-radius:10px;box-shadow:0 10px 28px rgba(37,47,124,.18);padding:6px;z-index:9999;min-width:240px;max-width:340px}
 .board-menu-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:14px;color:var(--text)}
 .board-menu-item:hover{background:rgba(43,177,230,.10)}
@@ -120,7 +137,7 @@ button:hover{border-color:var(--lg-blue)}
 
 /* ── LAYOUT ── */
 .layout{display:flex;align-items:flex-start;min-height:calc(100vh - 47px)}
-.sidebar{position:sticky;top:47px;flex-shrink:0;width:92px;background:var(--bg);border-right:1px solid var(--border);padding:14px 0;height:calc(100vh - 47px);overflow-y:auto;z-index:1;display:flex;flex-direction:column}
+.sidebar{position:sticky;top:47px;flex-shrink:0;width:92px;background:var(--sidebar-bg);border-right:1px solid var(--border);padding:14px 0;height:calc(100vh - 47px);overflow-y:auto;z-index:1;display:flex;flex-direction:column}
 .sidebar .tab-nav{flex:1;min-height:0;overflow-y:auto}
 .sidebar-foot{margin-top:auto;padding:10px 8px 14px;display:flex;flex-direction:column;gap:8px;align-items:stretch;border-top:1px solid var(--border)}
 .sidebar-add-list{font-size:11px;padding:7px 8px;border-radius:8px;line-height:1.1;white-space:normal;text-align:center}
@@ -925,6 +942,7 @@ window.__lgAuth = { ready: true, user: { id: 'local', email: 'local' }, showLogi
   <span class="logo"><span class="dot"></span>Matryoshka</span>
   <button class="title board-switcher" id="boardSwitcher" type="button"></button>
   <button id="matryoshkaHomeBtn" type="button" title="Matryoshka Home — all boards at a glance">◉ Home</button>
+  <button id="skinPickerBtn" type="button" title="Change skin">Skins</button>
   <button class="sync-status" id="syncStatus" type="button" title="Click to pull the latest from the cloud">
     <span class="sync-dot"></span>
     <span class="sync-label">syncing…</span>
@@ -2701,6 +2719,7 @@ function defaultState(){
     viewingMatryoshkaHome: false,
     matryoshkaHomeMode: 'free',
     matryoshkaHomeZoom: 1,
+    skin: 'simple',
     boardPos:  { internal:{x:20,y:20}, client:{x:600,y:20}, bd:{x:20,y:520}, financing:{x:600,y:520} },
     boardSize: { internal:{w:560,h:0}, client:{w:560,h:0}, bd:{w:560,h:0}, financing:{w:560,h:0} },
     titles: {
@@ -2801,6 +2820,7 @@ function runStateMigrations(s){
   if(s.viewingMatryoshkaHome === undefined) s.viewingMatryoshkaHome = false;
   if(!s.matryoshkaHomeMode) s.matryoshkaHomeMode = 'free';
   if(!s.matryoshkaHomeZoom) s.matryoshkaHomeZoom = 1;
+  if(!s.skin) s.skin = 'simple';
   s.titles = s.titles || {};
   if(!s.titles.home) s.titles.home = 'Home';
   if(!s.activeTab) s.activeTab = 'home';
@@ -3509,9 +3529,97 @@ function renderTrackerInternal(){
   renderSection();
   renderBoardSwitcher();
   renderMatryoshkaHomeButton();
+  wireSkinPicker();
+  applySkin();
   renderBrandCorner();
   applyBgColor();
   wireSectionMenu();
+}
+
+// ── SKIN SYSTEM ─────────────────────────────────────────────────────────
+const SKINS = [
+  {
+    id: 'simple',
+    name: 'Simple',
+    swatches: ['#f6f2eb','#252f7c','#ec058c','#2bb1e6'],
+  },
+];
+
+function applySkin(){
+  const skin = (state.skin && SKINS.find(s => s.id === state.skin)) ? state.skin : 'simple';
+  document.body.dataset.skin = skin;
+}
+
+function wireSkinPicker(){
+  const btn = document.getElementById('skinPickerBtn');
+  if(!btn || btn.dataset.wired) return;
+  btn.dataset.wired = '1';
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const existing = document.getElementById('skinMenuFloat');
+    if(existing){ closeSkinMenu(); return; }
+    openSkinMenu(btn);
+  });
+}
+// Close skin menu on Escape or a click that clearly originates outside it
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeSkinMenu(); });
+document.addEventListener('click', e => {
+  if(!document.getElementById('skinMenuFloat')) return;
+  if(e.target.closest('#skinPickerBtn')) return; // handled by button toggle
+  if(!e.target.closest('#skinMenuFloat')) closeSkinMenu();
+}, true); // capture phase so it fires before button handler
+
+function openSkinMenu(anchor){
+  closeSkinMenu();
+  anchor.classList.add('open');
+  const menu = document.createElement('div');
+  menu.className = 'skin-menu';
+  menu.id = 'skinMenuFloat';
+  const title = document.createElement('div');
+  title.className = 'skin-menu-title';
+  title.textContent = 'Appearance';
+  menu.appendChild(title);
+  SKINS.forEach(skin => {
+    const btn = document.createElement('button');
+    btn.className = 'skin-item' + (state.skin === skin.id ? ' active' : '');
+    btn.type = 'button';
+    const swatchHtml = skin.swatches.map(c => `<span class="skin-swatch" style="background:${c}"></span>`).join('');
+    btn.innerHTML = `
+      <span class="skin-check">${state.skin === skin.id ? '✓' : ''}</span>
+      <span class="skin-item-name">${escapeHtml(skin.name)}</span>
+      <span class="skin-swatches">${swatchHtml}</span>
+    `;
+    btn.addEventListener('click', () => {
+      state.skin = skin.id;
+      save(); applySkin(); closeSkinMenu();
+      // Update active states without full re-render
+      menu.querySelectorAll('.skin-item').forEach(el => {
+        const isActive = el === btn;
+        el.classList.toggle('active', isActive);
+        el.querySelector('.skin-check').textContent = isActive ? '✓' : '';
+      });
+    });
+    menu.appendChild(btn);
+  });
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  let top = r.bottom + 6, left = r.left;
+  setTimeout(() => {
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    if(top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    if(left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+    menu.style.top = top + 'px';
+    menu.style.left = Math.max(8, left) + 'px';
+  }, 0);
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+}
+
+function closeSkinMenu(){
+  const m = document.getElementById('skinMenuFloat');
+  if(m) m.remove();
+  const btn = document.getElementById('skinPickerBtn');
+  if(btn) btn.classList.remove('open');
 }
 
 function renderMatryoshkaHomeButton(){
