@@ -52,18 +52,17 @@ body[data-skin="dark-neon"]{
   --lg-cyan:#00f5ff;
   background-image:none !important;
 }
-/* Cosmic background gradient */
+/* Synthwave background image — full viewport, locked behind all content */
 body[data-skin="dark-neon"]::before{
   content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;
-  background:
-    radial-gradient(ellipse 110% 30% at 50% 100%, rgba(255,75,216,.55) 0%, rgba(168,85,247,.22) 40%, transparent 70%),
-    linear-gradient(180deg, #020516 0%, #070426 62%, #24004d 100%);
+  background:url('assets/bg-dark-neon.png') center center / cover no-repeat;
+  /* Fallback gradient if image hasn't loaded */
+  background-color:#020516;
 }
-/* Synthwave perspective grid at bottom */
+/* Darken the top half slightly so header content reads cleanly */
 body[data-skin="dark-neon"]::after{
-  content:'';position:fixed;bottom:0;left:0;right:0;height:220px;z-index:-1;pointer-events:none;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 220' preserveAspectRatio='none'%3E%3Cg stroke='%23ff4bd8' stroke-opacity='.5' stroke-width='1' fill='none'%3E%3Cline x1='960' y1='0' x2='-440' y2='220'/%3E%3Cline x1='960' y1='0' x2='-230' y2='220'/%3E%3Cline x1='960' y1='0' x2='-20' y2='220'/%3E%3Cline x1='960' y1='0' x2='120' y2='220'/%3E%3Cline x1='960' y1='0' x2='260' y2='220'/%3E%3Cline x1='960' y1='0' x2='400' y2='220'/%3E%3Cline x1='960' y1='0' x2='540' y2='220'/%3E%3Cline x1='960' y1='0' x2='680' y2='220'/%3E%3Cline x1='960' y1='0' x2='820' y2='220'/%3E%3Cline x1='960' y1='0' x2='960' y2='220'/%3E%3Cline x1='960' y1='0' x2='1100' y2='220'/%3E%3Cline x1='960' y1='0' x2='1240' y2='220'/%3E%3Cline x1='960' y1='0' x2='1380' y2='220'/%3E%3Cline x1='960' y1='0' x2='1520' y2='220'/%3E%3Cline x1='960' y1='0' x2='1660' y2='220'/%3E%3Cline x1='960' y1='0' x2='1800' y2='220'/%3E%3Cline x1='960' y1='0' x2='1940' y2='220'/%3E%3Cline x1='960' y1='0' x2='2150' y2='220'/%3E%3Cline x1='960' y1='0' x2='2360' y2='220'/%3E%3C/g%3E%3Cg stroke='%23ff4bd8' fill='none'%3E%3Cline x1='0' y1='0' x2='1920' y2='0' stroke-opacity='.55'/%3E%3Cline x1='0' y1='13' x2='1920' y2='13' stroke-opacity='.52'/%3E%3Cline x1='0' y1='28' x2='1920' y2='28' stroke-opacity='.48'/%3E%3Cline x1='0' y1='46' x2='1920' y2='46' stroke-opacity='.44'/%3E%3Cline x1='0' y1='67' x2='1920' y2='67' stroke-opacity='.40'/%3E%3Cline x1='0' y1='91' x2='1920' y2='91' stroke-opacity='.36'/%3E%3Cline x1='0' y1='118' x2='1920' y2='118' stroke-opacity='.32'/%3E%3Cline x1='0' y1='148' x2='1920' y2='148' stroke-opacity='.28'/%3E%3Cline x1='0' y1='182' x2='1920' y2='182' stroke-opacity='.24'/%3E%3C/g%3E%3C/svg%3E");
-  background-size:100% 100%;
+  content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg, rgba(2,5,22,.45) 0%, rgba(2,5,22,.1) 45%, transparent 65%);
 }
 
 /* Hide Guggenheim art in this skin */
@@ -78,14 +77,15 @@ body[data-skin="dark-neon"] .header{
   box-shadow:0 1px 24px rgba(255,75,216,.10);
 }
 body[data-skin="dark-neon"] .logo{
-  color:#ff4bd8;
-  letter-spacing:2px;
-  text-shadow:0 0 16px rgba(255,75,216,.65);
+  background:url('assets/logo-dark-neon.png') left center / contain no-repeat;
+  width:160px;
+  height:38px;
+  color:transparent;
+  text-shadow:none;
+  letter-spacing:0;
+  flex-shrink:0;
 }
-body[data-skin="dark-neon"] .logo .dot{
-  background:#00f5ff;
-  box-shadow:0 0 8px #00f5ff,0 0 20px rgba(0,245,255,.55);
-}
+body[data-skin="dark-neon"] .logo .dot{display:none}
 body[data-skin="dark-neon"] .board-switcher{color:#f8fafc}
 body[data-skin="dark-neon"] .board-switcher:hover{background:rgba(255,75,216,.08)}
 body[data-skin="dark-neon"] .board-switcher.open{background:rgba(255,75,216,.1)}
