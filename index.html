@@ -5016,7 +5016,8 @@ function renderBoardSwitcher(){
   if(!btn) return;
   const cur = state.boards?.[state.activeBoardId];
   const onHome = state.activeTab === 'home' || state.viewingMatryoshkaHome;
-  btn.textContent = onHome ? 'Home' : (cur?.title || 'Untitled board');
+  btn.style.display = onHome ? 'none' : '';
+  btn.textContent = cur?.title || 'Untitled board';
   if(!btn.dataset.wired){
     btn.dataset.wired = '1';
     btn.addEventListener('click', e => {
