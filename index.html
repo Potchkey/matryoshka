@@ -308,6 +308,81 @@ body[data-skin="dark-neon"] #lgBrandCorner{opacity:.5}
   body[data-skin="dark-neon"] #lgArtBackground{transition:none}
 }
 
+/* ══════════════════════════════════════════════════════
+   SKIN: 80s Lite — pastel synthwave light mode
+   ══════════════════════════════════════════════════════ */
+body[data-skin="80s-lite"]{
+  --bg:transparent;
+  --card:#ffffff;
+  --border:rgba(0,0,0,.07);
+  --border-strong:rgba(0,0,0,.13);
+  --text:#1a1a2e;
+  --muted:#6b7280;
+  --row-hover:rgba(249,115,22,.05);
+  --row-drop:rgba(249,115,22,.12);
+  --header-bg:rgba(255,255,255,.92);
+  --sidebar-bg:rgba(255,255,255,.92);
+  --lg-blue:#8b5cf6;
+  --lg-yellow:#f97316;
+  --lg-pink:#ec4899;
+  --lg-cyan:#06b6d4;
+}
+body[data-skin="80s-lite"]::before{
+  content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:url('assets/bg-80s-lite.png') right bottom / 55% auto no-repeat;
+  background-color:#fefefe;
+}
+/* Gradient logo text */
+body[data-skin="80s-lite"] .logo{
+  background:linear-gradient(120deg,#f97316 0%,#ec4899 50%,#8b5cf6 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+body[data-skin="80s-lite"] .logo .dot{
+  -webkit-text-fill-color:#f97316;
+  color:#f97316;
+}
+/* Board cards — white with colored top accent */
+body[data-skin="80s-lite"] .board-card{
+  background:#ffffff;
+  border:1px solid rgba(0,0,0,.08);
+  border-left:none;
+}
+body[data-skin="80s-lite"] .board-card.bc-internal{border-top:3px solid #f97316;}
+body[data-skin="80s-lite"] .board-card.bc-client  {border-top:3px solid #06b6d4;}
+body[data-skin="80s-lite"] .board-card.bc-bd      {border-top:3px solid #8b5cf6;}
+body[data-skin="80s-lite"] .board-card.bc-navy    {border-top:3px solid #ec4899;}
+/* Section cards */
+body[data-skin="80s-lite"] .section-card{background:#ffffff;border-color:rgba(0,0,0,.08);}
+/* Sidebar active item — orange highlight */
+body[data-skin="80s-lite"] .tab-btn.active{
+  background:rgba(249,115,22,.10);
+  color:#f97316;
+}
+body[data-skin="80s-lite"] .tab-btn.active .tab-icon-wrap{color:#f97316;}
+/* Header / sidebar backgrounds */
+body[data-skin="80s-lite"] .header{background:rgba(255,255,255,.92);backdrop-filter:blur(8px);}
+body[data-skin="80s-lite"] .sidebar{background:rgba(255,255,255,.92);backdrop-filter:blur(8px);}
+/* Suppress art background */
+body[data-skin="80s-lite"] #lgArtBackground{display:none!important}
+/* Matryoshka home button */
+body[data-skin="80s-lite"] #matryoshkaHomeBtn{
+  color:#8b5cf6;border-color:rgba(139,92,246,.4);
+}
+body[data-skin="80s-lite"] #matryoshkaHomeBtn:hover{
+  background:rgba(139,92,246,.08);
+}
+/* Matryoshka home cards */
+body[data-skin="80s-lite"] .matryoshka-card{background:#ffffff;border-color:rgba(0,0,0,.08);}
+/* Toolbar */
+body[data-skin="80s-lite"] #boardCanvasToolbar button,
+body[data-skin="80s-lite"] .board-canvas-toolbar button{color:#6b7280;border-color:rgba(0,0,0,.12)}
+body[data-skin="80s-lite"] #boardCanvasToolbar button:hover,
+body[data-skin="80s-lite"] .board-canvas-toolbar button:hover{color:#1a1a2e;background:rgba(0,0,0,.04)}
+body[data-skin="80s-lite"] #boardCanvasToolbar button.active,
+body[data-skin="80s-lite"] .board-canvas-toolbar button.active{color:#f97316;background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.35)}
+
 html,body{height:100%}
 /* Guggenheim daily-art background: full-bleed image behind everything, faded
    so it reads as ambient backdrop and doesn't compete with the tracker. */
@@ -3778,6 +3853,11 @@ const SKINS = [
     id: 'dark-neon',
     name: '80s Dark',
     swatches: ['#020516','#ff4bd8','#00f5ff','#a855f7'],
+  },
+  {
+    id: '80s-lite',
+    name: '80s Lite',
+    swatches: ['#fefefe','#f97316','#ec4899','#8b5cf6'],
   },
 ];
 
