@@ -1385,7 +1385,7 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
 <div class="header">
   <span class="logo"><span class="doll">🪆</span>Matryoshka</span>
   <button class="title board-switcher" id="boardSwitcher" type="button"></button>
-  <button id="matryoshkaHomeBtn" type="button" title="Matryoshka Home — all boards at a glance" style="display:none">Home</button>
+  <button id="matryoshkaHomeBtn" type="button" title="Sentinel — all boards at a glance" style="display:none">Sentinel</button>
   <button id="skinPickerBtn" type="button" title="Change skin">Skins</button>
   <button class="sync-status" id="syncStatus" type="button" title="Click to pull the latest from the cloud">
     <span class="sync-dot"></span>
@@ -3462,7 +3462,7 @@ function defaultState(){
     boardPos:  { internal:{x:20,y:20}, client:{x:600,y:20}, bd:{x:20,y:520}, financing:{x:600,y:520} },
     boardSize: { internal:{w:560,h:0}, client:{w:560,h:0}, bd:{w:560,h:0}, financing:{w:560,h:0} },
     titles: {
-      home:'Home',
+      home:'Full Picture',
       internal:'Internal', client:'Client matters', bd:'Business development', financing:'Financing',
       internalArchive:'Internal — archive', clientArchive:'Client matters — archive', bdArchive:'Business development — archive', financingArchive:'Financing — archive',
     },
@@ -3561,7 +3561,18 @@ function runStateMigrations(s){
   if(!s.matryoshkaHomeZoom) s.matryoshkaHomeZoom = 1;
   if(!s.skin) s.skin = 'simple';
   s.titles = s.titles || {};
-  if(!s.titles.home) s.titles.home = 'Home';
+  if(!s.titles.home) s.titles.home = 'Full Picture';
+  // One-time: rename the per-board aggregate tab from its old default 'Home' to 'Full Picture'.
+  // Guarded so a user who later renames a tab back to 'Home' isn't clobbered on every load.
+  if(!s._homeTabRenamedToFullPicture){
+    if(s.titles.home === 'Home') s.titles.home = 'Full Picture';
+    if(s.boards){
+      Object.values(s.boards).forEach(b => {
+        if(b && b.data && b.data.titles && b.data.titles.home === 'Home') b.data.titles.home = 'Full Picture';
+      });
+    }
+    s._homeTabRenamedToFullPicture = true;
+  }
   if(!s.activeTab) s.activeTab = 'home';
   // Rebuild the runtime registries from scratch each migration. Previously this just
   // appended to LIVE_BOARDS / ALL_BOARDS / SCHEMAS, which meant deleted boards (and stale
@@ -3857,7 +3868,7 @@ function _createBoard(title, templateKey){
   // Empty workspace: no built-in lists, no rows, fresh bg/logo
   const emptyData = {
     rows: {},
-    titles: { home: 'Home' },
+    titles: { home: 'Full Picture' },
     headers: {},
     colWidths: {},
     userColumns: {},
@@ -5050,7 +5061,7 @@ function renderBoardSwitcher(){
   if(!btn) return;
   const cur = state.boards?.[state.activeBoardId];
   btn.style.display = '';
-  btn.textContent = state.viewingMatryoshkaHome ? 'Home' : (cur?.title || 'Untitled board');
+  btn.textContent = state.viewingMatryoshkaHome ? 'Sentinel' : (cur?.title || 'Untitled board');
   if(!btn.dataset.wired){
     btn.dataset.wired = '1';
     btn.addEventListener('click', e => {
@@ -5070,7 +5081,7 @@ function openBoardMenu(anchor){
   // Home item at top
   const homeItem = document.createElement('div');
   homeItem.className = 'board-menu-item' + (state.viewingMatryoshkaHome ? ' active' : '');
-  homeItem.innerHTML = `<span class="check">${state.viewingMatryoshkaHome ? '✓' : ''}</span><span class="name">Home</span>`;
+  homeItem.innerHTML = `<span class="check">${state.viewingMatryoshkaHome ? '✓' : ''}</span><span class="name">Sentinel</span>`;
   homeItem.addEventListener('click', () => {
     closeBoardMenu();
     state.viewingMatryoshkaHome = true;
@@ -5090,7 +5101,7 @@ function openBoardMenu(anchor){
       <span class="check">${b.isActive ? '✓' : ''}</span>
       <span class="name">${escapeHtml(b.title)}</span>
       <span class="row-actions">
-        <button class="pin" title="${isPinned ? 'Unpin from Matryoshka Home' : 'Pin to Matryoshka Home'}" style="opacity:${isPinned?'1':'.45'}">${isPinned ? '◉' : '◎'}</button>
+        <button class="pin" title="${isPinned ? 'Unpin from Sentinel' : 'Pin to Sentinel'}" style="opacity:${isPinned?'1':'.45'}">${isPinned ? '◉' : '◎'}</button>
         <button class="tpl" title="Save as template">⌬</button>
         <button class="dup" title="Duplicate">⎘</button>
         <button class="rename" title="Rename">✎</button>
@@ -5687,7 +5698,7 @@ function renderMatryoshkaHome(canvas){
   if(pinnedIds.length === 0){
     const empty = document.createElement('div');
     empty.className = 'matryoshka-empty';
-    empty.innerHTML = `<h2>Your Matryoshka Home is empty</h2><p>Pin boards here for a cross-board overview. Use the board menu (▾ next to a board name) and choose "Pin to Home".</p>`;
+    empty.innerHTML = `<h2>Your Sentinel view is empty</h2><p>Pin boards here for a cross-board overview. Use the board menu (▾ next to a board name) and choose "Pin to Sentinel".</p>`;
     canvas.appendChild(empty);
   }
 
@@ -5741,7 +5752,7 @@ function renderMatryoshkaHome(canvas){
       <span class="matryoshka-card-count">${doneCount}/${totalCount}</span>
       <button class="matryoshka-card-collapse" title="${collapsed ? 'Expand' : 'Collapse'}">${collapseLabel}</button>
       <button class="matryoshka-card-open btn-primary">Open →</button>
-      <button class="mc-hide-btn" title="Unpin from Home">✕</button>
+      <button class="mc-hide-btn" title="Unpin from Sentinel">✕</button>
     `;
     head.querySelector('.matryoshka-card-open').addEventListener('click', e => {
       e.stopPropagation();
@@ -5755,7 +5766,7 @@ function renderMatryoshkaHome(canvas){
     });
     head.querySelector('.mc-hide-btn').addEventListener('click', e => {
       e.stopPropagation();
-      if(!confirm('Unpin "' + escapeHtml(board.title || id) + '" from Matryoshka Home?')) return;
+      if(!confirm('Unpin "' + escapeHtml(board.title || id) + '" from Sentinel?')) return;
       state.matryoshkaHome[id] = { ...opts, pinned: false };
       save(); render();
     });
