@@ -706,6 +706,22 @@ body.view-home .board-canvas{min-height:calc(100vh - 47px)}
 .tbl tbody tr.row-drop-above{box-shadow:inset 0 2px 0 0 var(--lg-cyan)}
 .tbl tbody tr.drop-below,
 .tbl tbody tr.row-drop-below{box-shadow:inset 0 -2px 0 0 var(--lg-cyan)}
+/* ── Keyboard row cursor ── the focused line when navigating with the keyboard.
+   Left accent bar + soft row tint so it reads clearly without a heavy outline. */
+.tbl tbody tr.row-kbcursor > td{background:rgba(43,177,230,.12)}
+.tbl tbody tr.row-kbcursor > td:first-child{box-shadow:inset 3px 0 0 0 var(--lg-cyan)}
+body[data-skin="dark-neon"] .tbl tbody tr.row-kbcursor > td{background:rgba(0,245,255,.10)}
+body[data-skin="dark-neon"] .tbl tbody tr.row-kbcursor > td:first-child{box-shadow:inset 3px 0 0 0 #00f5ff}
+/* ── Keyboard shortcuts cheat-sheet (toggled with ?) ── */
+.kbhelp-bg{position:fixed;inset:0;background:rgba(37,47,124,.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.kbhelp{background:var(--card,#fff);color:var(--text,#1a1a1a);border-radius:14px;padding:20px 24px 22px;max-width:540px;width:90%;max-height:85vh;overflow:auto;box-shadow:0 24px 70px rgba(37,47,124,.30)}
+.kbhelp h3{margin:0 0 4px;font-size:16px;font-weight:700}
+.kbhelp .kbhelp-sub{margin:0 0 14px;font-size:12px;color:var(--muted,#6f6b62)}
+.kbhelp table{width:100%;border-collapse:collapse;font-size:13px}
+.kbhelp td{padding:6px 8px;border-bottom:1px solid var(--border,rgba(0,0,0,.08));vertical-align:middle}
+.kbhelp td.kb-keys{white-space:nowrap;width:1%}
+.kbhelp kbd{display:inline-block;min-width:16px;text-align:center;padding:2px 7px;margin:0 1px;border-radius:6px;background:rgba(37,47,124,.07);border:1px solid var(--border-strong,rgba(37,47,124,.18));box-shadow:0 1px 0 rgba(37,47,124,.12);font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text,#1a1a1a)}
+.kbhelp .kbhelp-foot{margin-top:14px;font-size:11.5px;color:var(--muted,#6f6b62);text-align:right}
 /* AGGRESSIVE row compaction — force everything tight */
 .tbl{line-height:1.15 !important;border-spacing:0}
 .tbl thead{display:none}
@@ -6626,6 +6642,192 @@ function readCellValue(div){
   if (!hasStructure) return div.textContent;
   return sanitizeRowHtml(div.innerHTML);
 }
+
+// ── KEYBOARD-FIRST ROW NAVIGATION ─────────────────────────────────────────
+// A "row cursor" makes the whole tracker usable without a mouse. The cursor
+// tracks the live DOM (not state order), so it follows sections, the aggregate
+// "Full Picture" view, and collapse state for free — collapsed children aren't
+// in the DOM, so navigation skips them automatically. Two implicit modes:
+//   • Navigate — no cell focused. Arrows/j-k move the cursor; single keys act.
+//   • Edit — a .cell-edit is focused (existing Tab/Enter behavior). Esc exits.
+let _kbCursor = null;   // { tab, rowId } | null
+let _kbLastDel = 0;     // timestamp of last 'd' for the dd-to-delete combo
+
+function _kbVisibleRows(){
+  // offsetParent === null filters out display:none collapsed children.
+  return Array.from(document.querySelectorAll('main .tbl tbody tr[data-row-id]'))
+    .filter(tr => tr.offsetParent !== null);
+}
+function _kbIndexOfCursor(rows){
+  if (!_kbCursor) return -1;
+  return rows.findIndex(tr => tr.dataset.rowId === _kbCursor.rowId && tr.dataset.tab === _kbCursor.tab);
+}
+function _kbCurrentTr(){
+  const rows = _kbVisibleRows();
+  const i = _kbIndexOfCursor(rows);
+  return i >= 0 ? rows[i] : null;
+}
+// Re-paint the cursor highlight. Called after every render() (see the wrapper
+// below), so the cursor survives saves, indents, check-offs, etc.
+function applyKbCursor(){
+  document.querySelectorAll('tr.row-kbcursor').forEach(tr => tr.classList.remove('row-kbcursor'));
+  if (!_kbCursor) return;
+  const tr = _kbVisibleRows().find(t => t.dataset.rowId === _kbCursor.rowId && t.dataset.tab === _kbCursor.tab);
+  if (tr) tr.classList.add('row-kbcursor'); else _kbCursor = null;
+}
+function _kbSetCursorEl(tr, scroll){
+  if (!tr) return;
+  _kbCursor = { tab: tr.dataset.tab, rowId: tr.dataset.rowId };
+  applyKbCursor();
+  if (scroll !== false) tr.scrollIntoView({ block: 'nearest' });
+}
+function _kbMove(delta){
+  const rows = _kbVisibleRows();
+  if (!rows.length) return;
+  let i = _kbIndexOfCursor(rows);
+  if (i < 0) i = delta > 0 ? -1 : rows.length;   // first nav lands on the near edge
+  _kbSetCursorEl(rows[Math.max(0, Math.min(rows.length - 1, i + delta))]);
+}
+function _kbEdit(tr){
+  const cell = tr && tr.querySelector('.cell-edit');
+  if (!cell) return;
+  cell.focus();
+  try {
+    const r = document.createRange(); r.selectNodeContents(cell); r.collapse(false);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  } catch(_){}
+}
+// Alt+↑/↓ reorders within the same list, using the adjacent same-tab row as the target.
+function _kbMoveRow(delta){
+  const tr = _kbCurrentTr();
+  if (!tr) return;
+  const rows = _kbVisibleRows();
+  const i = rows.indexOf(tr);
+  const neighbor = rows[i + delta];
+  if (!neighbor || neighbor.dataset.tab !== tr.dataset.tab) return;
+  reorderRow(tr.dataset.tab, tr.dataset.rowId, neighbor.dataset.rowId, delta < 0);
+  // render() reapplies the cursor (rowId unchanged), keeping focus on the moved row.
+}
+
+// Cheat-sheet overlay (toggled with ?).
+function _kbCloseHelp(){ const el = document.getElementById('kbHelpBg'); if (el){ el.remove(); return true; } return false; }
+function _kbToggleHelp(){
+  if (_kbCloseHelp()) return;
+  const rows = [
+    ['↑ ↓', 'or', 'j', 'k', 'Move between lines'],
+    ['Enter', 'Edit the current line'],
+    ['Esc', 'Stop editing / clear cursor'],
+    ['Space', 'Check off / un-check'],
+    ['Tab', 'Shift+Tab', 'Indent / outdent'],
+    ['← →', 'Collapse / expand sub-rows'],
+    ['n', 'New line below'],
+    ['e', 'Open notes'],
+    ['d d', 'Delete the current line'],
+    ['Alt+↑ ↓', 'Move the line up / down'],
+    ['?', 'Show / hide this list'],
+  ];
+  const fmt = parts => parts.map(p => /^(or|Move|Edit|Stop|Check|Indent|Collapse|New|Open|Delete|Show)/.test(p) ? '' : '<kbd>'+p+'</kbd>');
+  const body = rows.map(r => {
+    const label = r[r.length - 1];
+    const keys = r.slice(0, -1).map(p => p === 'or' ? '<span style="color:var(--muted)">or</span>' : '<kbd>'+p+'</kbd>').join(' ');
+    return `<tr><td class="kb-keys">${keys}</td><td>${label}</td></tr>`;
+  }).join('');
+  const bg = document.createElement('div');
+  bg.className = 'kbhelp-bg'; bg.id = 'kbHelpBg';
+  bg.innerHTML = `<div class="kbhelp" role="dialog" aria-label="Keyboard shortcuts">
+    <h3>Keyboard shortcuts</h3>
+    <p class="kbhelp-sub">Work line to line without the mouse.</p>
+    <table>${body}</table>
+    <div class="kbhelp-foot">Press <kbd>?</kbd> or <kbd>Esc</kbd> to close</div>
+  </div>`;
+  bg.addEventListener('click', e => { if (e.target === bg) _kbCloseHelp(); });
+  document.body.appendChild(bg);
+}
+
+// Wrap render() so the cursor highlight is re-applied after every redraw.
+if (typeof render === 'function' && !render.__kbWrapped){
+  const _origRender = render;
+  render = function(){ const out = _origRender.apply(this, arguments); try { applyKbCursor(); } catch(_){} return out; };
+  render.__kbWrapped = true;
+}
+
+// Keep the cursor in sync when the mouse is used: clicking into a cell moves it.
+document.addEventListener('focusin', e => {
+  const cell = e.target.closest && e.target.closest('.cell-edit');
+  if (!cell) return;
+  const tr = cell.closest('tr[data-row-id]');
+  if (tr) { _kbCursor = { tab: tr.dataset.tab, rowId: tr.dataset.rowId }; applyKbCursor(); }
+});
+
+window.addEventListener('keydown', e => {
+  if (state.viewingMatryoshkaHome) return;            // Sentinel canvas isn't a row list
+  const t = e.target;
+  const inField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+
+  // Esc inside a table cell drops back to navigate mode on that row.
+  if (e.key === 'Escape' && inField && t.classList && t.classList.contains('cell-edit')){
+    const tr = t.closest('tr[data-row-id]');
+    t.blur();
+    if (tr) _kbSetCursorEl(tr, false);
+    e.preventDefault();
+    return;
+  }
+  if (inField) return;                                // typing — leave it alone
+  if (e.metaKey || e.ctrlKey) return;                 // don't shadow Cmd/Ctrl combos
+
+  if (e.key === '?'){ e.preventDefault(); _kbToggleHelp(); return; }
+  if (e.key === 'Escape'){
+    if (_kbCloseHelp()){ e.preventDefault(); return; }
+    if (_kbCursor){ _kbCursor = null; applyKbCursor(); e.preventDefault(); }
+    return;
+  }
+
+  const k = e.key;
+  if (k === 'ArrowDown' || k === 'j'){ e.preventDefault(); e.altKey ? _kbMoveRow(1) : _kbMove(1); return; }
+  if (k === 'ArrowUp'   || k === 'k'){ e.preventDefault(); e.altKey ? _kbMoveRow(-1) : _kbMove(-1); return; }
+
+  const tr = _kbCurrentTr();
+  if (!tr) return;                                    // everything below needs a cursor
+  const tab = tr.dataset.tab, rowId = tr.dataset.rowId;
+
+  if (k === 'Enter' || k === 'i'){ e.preventDefault(); _kbEdit(tr); return; }
+  if (k === ' '){ e.preventDefault(); const cb = tr.querySelector('input.row-check'); if (cb) cb.click(); return; }
+  if (k === 'Tab'){ e.preventDefault(); bulkShiftIndent(tab, [rowId], e.shiftKey ? -1 : 1); return; }
+  if (k === 'ArrowRight' || k === 'l'){
+    if (rowHasChildren(tab, rowId) && isCollapsedRow(rowId)){ e.preventDefault(); toggleRowCollapsed(rowId); }
+    return;
+  }
+  if (k === 'ArrowLeft' || k === 'h'){
+    if (rowHasChildren(tab, rowId) && !isCollapsedRow(rowId)){ e.preventDefault(); toggleRowCollapsed(rowId); }
+    return;
+  }
+  if (k === 'e'){ e.preventDefault(); const row = (state.rows[tab] || []).find(r => r.id === rowId); if (row) openNotesDrawer(tab, row); return; }
+  if (k === 'n'){
+    e.preventDefault();
+    const arr = state.rows[tab] || [];
+    const idx = arr.findIndex(r => r.id === rowId);
+    insertRowAfter(tab, rowId);                       // calls render()
+    const created = (state.rows[tab] || [])[idx + 1];
+    if (created){ _kbCursor = { tab, rowId: created.id }; applyKbCursor();
+      const newTr = document.querySelector(`tr[data-row-id="${created.id}"]`); _kbEdit(newTr); }
+    return;
+  }
+  if (k === 'd'){
+    e.preventDefault();
+    const now = (performance && performance.now) ? performance.now() : Date.now();
+    if (now - _kbLastDel < 600){                      // dd within 600ms = delete
+      _kbLastDel = 0;
+      const rows = _kbVisibleRows();
+      const i = rows.indexOf(tr);
+      const fallback = rows[i + 1] || rows[i - 1];    // where the cursor lands afterward
+      if (fallback) _kbCursor = { tab: fallback.dataset.tab, rowId: fallback.dataset.rowId };
+      deleteRow(tab, rowId);                          // calls render() → reapplies cursor
+    } else {
+      _kbLastDel = now;
+    }
+    return;
+  }
+});
 
 function renderChip(tab, row, key, val, placeholder){
   const div = document.createElement('div');
