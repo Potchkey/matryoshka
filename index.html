@@ -7305,6 +7305,7 @@ document.addEventListener('mouseup',   onRowMouseUp);
 
 /* ── COLUMN RESIZE (global; works in every table including Home cards) ── */
 let colResizeState = null;
+let colResizeJustEnded = false;
 
 function onColResizeMouseDown(e){
   const grip = e.target.closest('.col-resize');
@@ -7346,12 +7347,21 @@ function onColResizeMouseUp(){
   // in the right state, and render() causes a brief jump as the table rebuilds.
   save();
   colResizeState = null;
+  // The browser fires a click right after the drag (mousedown on the grip,
+  // mouseup having drifted onto the header). Swallow it so it doesn't reach the
+  // column header's sort toggle and reorder every row. Mirrors boardDragJustEnded.
+  colResizeJustEnded = true;
+  setTimeout(() => { colResizeJustEnded = false; }, 0);
 }
 
 // Use capture phase so this fires before the row/board mousedown handlers
 document.addEventListener('mousedown', onColResizeMouseDown, true);
 document.addEventListener('mousemove', onColResizeMouseMove);
 document.addEventListener('mouseup',   onColResizeMouseUp);
+// Swallow the post-resize click before it reaches the header's sort handler.
+document.addEventListener('click', e => {
+  if(colResizeJustEnded){ e.stopPropagation(); e.preventDefault(); }
+}, true);
 
 /* ── COLUMN REORDER (drag column header to a new position) ── */
 let colDragState = null;
