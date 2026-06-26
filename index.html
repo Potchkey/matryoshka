@@ -532,8 +532,8 @@ body.view-home .board-canvas{min-height:calc(100vh - 47px)}
 /* Section card — wraps section-head + table to look like a single board card */
 .section-card{position:relative;background:#fff;border:1px solid rgba(0,0,0,.05);border-radius:10px;overflow:hidden;max-width:none;box-shadow:0 1px 2px rgba(37,47,124,.04),0 6px 18px rgba(37,47,124,.06);width:600px;display:flex;flex-direction:column}
 .section-card #tableHost{flex:1;min-height:0;overflow:auto}
-.section-resize{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 45%,var(--lg-cyan) 45%,var(--lg-cyan) 57%,transparent 57%,transparent 68%,var(--lg-cyan) 68%,var(--lg-cyan) 80%,transparent 80%);opacity:.32;border-bottom-right-radius:10px;transition:opacity .15s}
-.section-card:hover .section-resize{opacity:.7}
+.section-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 50%,var(--lg-cyan) 50%,var(--lg-cyan) 60%,transparent 60%,transparent 70%,var(--lg-cyan) 70%,var(--lg-cyan) 80%,transparent 80%);opacity:0;border-bottom-right-radius:10px;transition:opacity .15s}
+.section-card:hover .section-resize{opacity:.4}
 .section-resize:hover{opacity:1}
 .section-card .section-head{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;background:transparent;margin-bottom:0}
 .section-icon{flex-shrink:0;width:10px;height:10px;border-radius:50%;background:var(--text)}
@@ -598,10 +598,10 @@ body.view-home .board-canvas{min-height:calc(100vh - 47px)}
 .tbl thead th.th-dragging{opacity:.4;background:rgba(43,177,230,.10)}
 .tbl thead th.col-drop-before{box-shadow:inset 4px 0 0 0 var(--lg-cyan)}
 .tbl thead th.col-drop-after{box-shadow:inset -4px 0 0 0 var(--lg-cyan)}
-.col-resize{position:absolute;top:-5px;right:0;transform:translateX(50%);width:9px;height:calc(100% + 10px);cursor:col-resize;z-index:20;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none}
-.col-resize::after{content:'';width:2px;height:100%;background:rgba(43,177,230,.30);border-radius:2px;transition:background .12s,width .12s}
-.col-resize:hover::after{background:var(--lg-cyan);width:3px}
-.col-resize.resizing::after{background:var(--lg-cyan);width:3px}
+.col-resize{position:absolute;top:-5px;right:0;transform:translateX(50%);width:18px;height:calc(100% + 10px);cursor:col-resize;z-index:50;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none}
+.col-resize::after{content:'';width:4px;height:100%;background:rgba(43,177,230,.55);border-radius:2px;transition:background .12s}
+.col-resize:hover::after{background:var(--lg-cyan)}
+.col-resize.resizing::after{background:var(--lg-cyan)}
 /* don't let table-wrap overflow hide the resize grip */
 .board-card-table-wrap{overflow-y:visible}
 .tbl td.cell-check{padding:0;text-align:center;vertical-align:middle}
@@ -970,7 +970,7 @@ body.view-dashboard .back-to-dash{display:none}
 .board-card{position:absolute;box-sizing:border-box;width:560px;background:#fff;border:1px solid rgba(37,47,124,.05);border-radius:10px;overflow:visible;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(37,47,124,.04),0 6px 20px rgba(37,47,124,.07);min-width:280px;min-height:120px}
 .board-card .board-card-table-wrap{border-radius:10px}
 .board-card-table-wrap{flex:1;overflow-x:auto;overflow-y:visible;padding-top:2px}
-.board-resize{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 45%,var(--lg-cyan) 45%,var(--lg-cyan) 57%,transparent 57%,transparent 68%,var(--lg-cyan) 68%,var(--lg-cyan) 80%,transparent 80%);opacity:.32;border-bottom-right-radius:10px;transition:opacity .15s}
+.board-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 50%,var(--lg-cyan) 50%,var(--lg-cyan) 60%,transparent 60%,transparent 70%,var(--lg-cyan) 70%,var(--lg-cyan) 80%,transparent 80%);opacity:0;border-bottom-right-radius:10px;transition:opacity .15s}
 .board-resize:hover{opacity:1}
 .board-card.dragging{z-index:50;opacity:.97;box-shadow:0 14px 36px rgba(37,47,124,.20);cursor:grabbing}
 /* Title row matches the sublist subpage's section-head: colored dot + bold title, padded. */
@@ -1178,8 +1178,8 @@ body.view-dashboard .back-to-dash{display:none}
 .matryoshka-empty p{font-size:13px;margin:0 0 20px;line-height:1.55}
 .mhome-unpinned-strip{position:absolute;bottom:16px;left:16px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mhome-unpinned-strip.mhome-grid-strip{position:static;padding:4px 0 8px;grid-column:1/-1}
-.mhome-resize{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 45%,var(--lg-cyan) 45%,var(--lg-cyan) 57%,transparent 57%,transparent 68%,var(--lg-cyan) 68%,var(--lg-cyan) 80%,transparent 80%);opacity:.32;border-bottom-right-radius:10px;transition:opacity .15s}
-.matryoshka-card:hover .mhome-resize{opacity:.7}
+.mhome-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 50%,var(--lg-cyan) 50%,var(--lg-cyan) 60%,transparent 60%,transparent 70%,var(--lg-cyan) 70%,var(--lg-cyan) 80%,transparent 80%);opacity:0;border-bottom-right-radius:10px;transition:opacity .15s}
+.matryoshka-card:hover .mhome-resize{opacity:.4}
 .mhome-resize:hover{opacity:1}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -5829,8 +5829,8 @@ function renderMatryoshkaHome(canvas){
           const z = Math.max(0.4, Math.min(2, +state.matryoshkaHomeZoom || 1));
           const startW = startRect.width / z, startH = startRect.height / z;
           const onMove = ev => {
-            card.style.width  = Math.max(280, _snap(startW + (ev.clientX - startX) / z)) + 'px';
-            card.style.height = Math.max(120, _snap(startH + (ev.clientY - startY) / z)) + 'px';
+            card.style.width  = Math.max(280, Math.round(startW + (ev.clientX - startX) / z)) + 'px';
+            card.style.height = Math.max(120, Math.round(startH + (ev.clientY - startY) / z)) + 'px';
           };
           const onUp = () => {
             document.removeEventListener('mousemove', onMove);
@@ -5905,7 +5905,7 @@ document.addEventListener('mousemove', e => {
   const z = mhomeDragState.z;
   let x = (e.clientX - cRect.left) / z - mhomeDragState.offsetX + mhomeDragState.canvas.scrollLeft;
   let y = (e.clientY - cRect.top)  / z - mhomeDragState.offsetY + mhomeDragState.canvas.scrollTop;
-  x = Math.max(0, _snap(x)); y = Math.max(0, _snap(y));
+  x = Math.max(0, x); y = Math.max(0, y);
   mhomeDragState.card.style.left = x + 'px';
   mhomeDragState.card.style.top  = y + 'px';
 });
@@ -6208,8 +6208,8 @@ function renderHome(host){
       const startW = startRect.width  / z;
       const startH = startRect.height / z;
       const onMove = ev => {
-        const w = Math.max(280, _snap(startW + (ev.clientX - startX) / z));
-        const h = Math.max(120, _snap(startH + (ev.clientY - startY) / z));
+        const w = Math.max(280, Math.round(startW + (ev.clientX - startX) / z));
+        const h = Math.max(120, Math.round(startH + (ev.clientY - startY) / z));
         card.style.width  = w + 'px';
         card.style.height = h + 'px';
       };
@@ -7050,12 +7050,6 @@ function bringCardToFront(card){
 }
 
 let pendingBoardDrag = null;
-// Snap free-drag positions and sizes to a tidy grid so boards/cards line up
-// instead of landing a few pixels off. Applied live during the drag, so cards
-// visibly click into alignment and stop overlapping by a hair.
-const SNAP_GRID = 16;
-function _snap(v){ return Math.round(v / SNAP_GRID) * SNAP_GRID; }
-
 let boardDragJustEnded = false;
 
 function onBoardMouseDown(e){
@@ -7132,8 +7126,8 @@ function onBoardMouseMove(e){
   // Divide the viewport delta by zoom to convert to logical pixels before subtracting offset.
   let x = (e.clientX - cRect.left) / z - boardDragState.offsetX + boardDragState.canvas.scrollLeft;
   let y = (e.clientY - cRect.top)  / z - boardDragState.offsetY + boardDragState.canvas.scrollTop;
-  x = Math.max(0, _snap(x));
-  y = Math.max(0, _snap(y));
+  x = Math.max(0, x);
+  y = Math.max(0, y);
   boardDragState.card.style.left = x + 'px';
   boardDragState.card.style.top  = y + 'px';
 }
@@ -7174,8 +7168,6 @@ document.addEventListener('click', e => {
 /* ── ROW DRAG (mouse-event based; HTML5 drag on <tr> is unreliable) ── */
 let rowDragState = null;
 
-let pendingRowDrag = null;
-
 function onRowMouseDown(e){
   if (e.button !== 0) return; // left-click only
   // Drag-source: the dedicated .cell-handle (always), OR any non-interactive space
@@ -7191,17 +7183,7 @@ function onRowMouseDown(e){
   if(!tr || !tr.dataset.rowId) return;
   const tbody = tr.parentElement;
   if(!tbody || tbody.tagName !== 'TBODY') return;
-  // Defer the real drag until the pointer crosses a small threshold, so a plain
-  // click (to edit text or select the row) never spawns a drag ghost — the main
-  // source of the old "twitchy" feel. Grabbing the explicit ⋮⋮ handle suppresses
-  // text selection immediately; clicking open row space stays a normal click.
-  pendingRowDrag = { tr, tbody, startX: e.clientX, startY: e.clientY, fromHandle: !!handle };
-  if (handle) e.preventDefault();
-}
-
-// Build the floating ghost and arm rowDragState. Called once the threshold is crossed.
-function _beginRowDrag(p){
-  const tr = p.tr, tbody = p.tbody;
+  e.preventDefault();
   tr.classList.add('row-dragging');
   // Drag group: this row + any contiguous deeper-indent children below it in the
   // natural state.rows order. Mark them all as dragging so the user sees what moves.
@@ -7252,8 +7234,8 @@ function _beginRowDrag(p){
     target: null,
     before: false,
     ghost: ghostTable,
-    offsetX: p.startX - trRect.left,
-    offsetY: p.startY - trRect.top,
+    offsetX: e.clientX - trRect.left,
+    offsetY: e.clientY - trRect.top,
   };
   // Update the ghost with a count badge when more than one row is moving.
   if (groupIds.length > 1){
@@ -7265,15 +7247,6 @@ function _beginRowDrag(p){
 }
 
 function onRowMouseMove(e){
-  // Promote a pending row drag once the pointer moves past the 4px threshold.
-  if(pendingRowDrag && !rowDragState){
-    const dx = e.clientX - pendingRowDrag.startX;
-    const dy = e.clientY - pendingRowDrag.startY;
-    if(Math.abs(dx) <= 4 && Math.abs(dy) <= 4) return;   // still just a click
-    if(!pendingRowDrag.fromHandle) e.preventDefault();    // committing — stop text selection
-    _beginRowDrag(pendingRowDrag);
-    pendingRowDrag = null;
-  }
   if(!rowDragState) return;
   // move the ghost
   if(rowDragState.ghost){
@@ -7309,7 +7282,6 @@ function onRowMouseMove(e){
 }
 
 function onRowMouseUp(){
-  pendingRowDrag = null;
   if(!rowDragState) return;
   rowDragState.tr.classList.remove('row-dragging');
   rowDragState.tbody.querySelectorAll('tr.row-dragging-child')
@@ -8141,8 +8113,8 @@ document.addEventListener('click', e => {
   });
   document.addEventListener('mousemove', e => {
     if (!drag) return;
-    const w = Math.max(360, Math.min(1600, _snap(drag.startW + (e.clientX - drag.startX))));
-    const h = Math.max(180, Math.min(window.innerHeight - 80, _snap(drag.startH + (e.clientY - drag.startY))));
+    const w = Math.max(360, Math.min(1600, drag.startW + (e.clientX - drag.startX)));
+    const h = Math.max(180, Math.min(window.innerHeight - 80, drag.startH + (e.clientY - drag.startY)));
     card.style.width  = w + 'px';
     card.style.height = h + 'px';
   });
