@@ -7348,20 +7348,24 @@ function onColResizeMouseUp(){
   save();
   colResizeState = null;
   // The browser fires a click right after the drag (mousedown on the grip,
-  // mouseup having drifted onto the header). Swallow it so it doesn't reach the
-  // column header's sort toggle and reorder every row. Mirrors boardDragJustEnded.
+  // mouseup having drifted onto the header or its sort arrows). Arm a guard so
+  // that single click is swallowed before it can reach the sort toggle and
+  // reorder every row. Timer-free on purpose — the guard is cleared by the click
+  // itself (below) so there's no reset race between the timer and the click.
   colResizeJustEnded = true;
-  setTimeout(() => { colResizeJustEnded = false; }, 0);
 }
 
 // Use capture phase so this fires before the row/board mousedown handlers
 document.addEventListener('mousedown', onColResizeMouseDown, true);
 document.addEventListener('mousemove', onColResizeMouseMove);
 document.addEventListener('mouseup',   onColResizeMouseUp);
-// Swallow the post-resize click before it reaches the header's sort handler.
+// Swallow the one click that follows a column resize, before it reaches the
+// header / sort-arrow click handlers. Cleared as a one-shot here; also cleared
+// at the start of any fresh pointer interaction so it can never get stuck.
 document.addEventListener('click', e => {
-  if(colResizeJustEnded){ e.stopPropagation(); e.preventDefault(); }
+  if(colResizeJustEnded){ colResizeJustEnded = false; e.stopPropagation(); e.preventDefault(); }
 }, true);
+document.addEventListener('mousedown', () => { colResizeJustEnded = false; }, true);
 
 /* ── COLUMN REORDER (drag column header to a new position) ── */
 let colDragState = null;
