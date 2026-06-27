@@ -6125,9 +6125,14 @@ function renderHome(host){
       card.style.left = pos.x + 'px';
       card.style.top  = pos.y + 'px';
     }
-    const sz = state.boardSize?.[tabKey] || {w:560,h:0};
-    if(mode === 'free' && sz.w) card.style.width = sz.w + 'px';
-    if(mode === 'free' && sz.h) card.style.height = sz.h + 'px';
+    const sz = state.boardSize?.[tabKey] || {w:0,h:0};
+    if(mode === 'free'){
+      // Width hugs the columns by default (no empty card on the right); a manual
+      // resize (sz.w) overrides. Height is free.
+      if(sz.w) card.style.width = sz.w + 'px';
+      else { const cw = tableTargetWidth(tabKey); if(cw) card.style.width = Math.max(320, Math.min(900, cw)) + 'px'; }
+      if(sz.h) card.style.height = sz.h + 'px';
+    }
 
     const collapsed = !!(state.boardCollapsed && state.boardCollapsed[tabKey]);
 
