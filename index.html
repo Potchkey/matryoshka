@@ -603,10 +603,10 @@ body.view-home .board-canvas{min-height:calc(100vh - 47px)}
    just in the header. The line itself is invisible until you hover the column or
    the boundary, then a thin guide runs the full height. */
 .col-resize{position:absolute;top:-5px;right:0;transform:translateX(50%);width:9px;height:calc(100% + 10px);cursor:col-resize;z-index:30;display:flex;justify-content:center;pointer-events:auto;touch-action:none}
-.col-resize::after{content:'';width:2px;height:100%;background:transparent;border-radius:2px;transition:background .12s}
-.tbl thead th:hover .col-resize::after{background:rgba(43,177,230,.40)}
-.col-resize:hover::after{background:var(--lg-cyan)}
-.col-resize.resizing::after{background:var(--lg-cyan)}
+.col-resize::after{content:'';width:2px;height:100%;background:rgba(37,47,124,.09);border-radius:2px;transition:background .12s,width .12s}
+.tbl thead th:hover .col-resize::after{background:rgba(43,177,230,.45)}
+.col-resize:hover::after{background:var(--lg-cyan);width:3px}
+.col-resize.resizing::after{background:var(--lg-cyan);width:3px}
 /* don't let table-wrap overflow hide the resize grip */
 .board-card-table-wrap{overflow-y:visible}
 .tbl td.cell-check{padding:0;text-align:center;vertical-align:middle}
