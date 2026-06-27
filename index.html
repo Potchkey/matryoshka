@@ -740,9 +740,10 @@ body[data-skin="dark-neon"] .tbl tbody tr.row-kbcursor > td:first-child{box-shad
 .tbl tbody tr.row-done > td{background:#ece4d3}
 body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);border-top-color:rgba(255,75,216,.10);border-bottom-color:rgba(255,75,216,.10);box-shadow:none}
 .tbl thead{display:none}
-/* Sub-page tables show the thead, styled subtly so it reads as part of the card header */
-.section-card .tbl thead{display:table-header-group;opacity:0;transition:opacity .18s}
-.section-card:hover .tbl thead{opacity:1}
+/* Single-column checklist: drop the left drag-handle column (the whole row drags)
+   and the column headers, so each row reads as a clean task bar. */
+.tbl td.cell-handle,.tbl th.col-handle{display:none}
+.section-card .tbl thead{display:none}
 .section-card .tbl thead th{font-size:10px;padding:5px 9px;background:transparent;color:#1a1a1a;font-weight:700;letter-spacing:.7px;text-transform:uppercase;border-bottom:none}
 .section-card .tbl thead th .th-label{color:#1a1a1a}
 .tbl tbody tr{line-height:1.15 !important;height:auto}
@@ -5477,7 +5478,7 @@ function renderSection(){
     return;
   }
 
-  const headHtml = cols.map(col => renderColHeader(tab, col)).join('');
+  const headHtml = listHeadHtml(tab);
 
   host.innerHTML = `
     <table class="tbl">
@@ -6127,10 +6128,9 @@ function renderHome(host){
     }
     const sz = state.boardSize?.[tabKey] || {w:0,h:0};
     if(mode === 'free'){
-      // Width hugs the columns by default (no empty card on the right); a manual
-      // resize (sz.w) overrides. Height is free.
+      // Single-column checklist: the task column flexes to fill the window, so a
+      // default width reads cleanly; a manual resize (sz.w) overrides. Height free.
       if(sz.w) card.style.width = sz.w + 'px';
-      else { const cw = tableTargetWidth(tabKey); if(cw) card.style.width = Math.max(320, Math.min(900, cw)) + 'px'; }
       if(sz.h) card.style.height = sz.h + 'px';
     }
 
@@ -6181,8 +6181,7 @@ function renderHome(host){
       empty.textContent = 'No tasks yet';
       card.appendChild(empty);
     } else {
-      const cols = getColumns(tabKey);
-      const headHtml = cols.map(col => renderColHeader(tabKey, col)).join('');
+      const headHtml = listHeadHtml(tabKey);
       const wrap = document.createElement('div');
       wrap.className = 'board-card-table-wrap';
       wrap.innerHTML = `
@@ -6202,8 +6201,15 @@ function renderHome(host){
   });
 }
 
+// Lists render as a clean single-column checklist: only the primary (title)
+// column is shown as a bar; status/who/due/date columns stay in the data but
+// aren't shown inline. listHeadHtml builds a matching width-less header so the
+// one column flexes to fill the window.
+function listDisplayColumns(tab){ const c = getColumns(tab); return c.length ? [c[0]] : c; }
+function listHeadHtml(tab){ const c = getColumns(tab); return c.length ? `<th data-col="${c[0].key}"></th>` : ''; }
+
 function renderRow(tab, row){
-  const cols = getColumns(tab);
+  const cols = listDisplayColumns(tab);
   const tr = document.createElement('tr');
   tr.dataset.rowId = row.id;
   tr.dataset.tab = tab;
@@ -6783,7 +6789,7 @@ function observeBoardCardResizes(){
 
 if (typeof render === 'function' && !render.__kbWrapped){
   const _origRender = render;
-  render = function(){ const out = _origRender.apply(this, arguments); try { fitBoardTableWidths(); } catch(_){} try { applyKbCursor(); } catch(_){} try { sizeColResizeGrips(); } catch(_){} try { observeBoardCardResizes(); } catch(_){} return out; };
+  render = function(){ const out = _origRender.apply(this, arguments); try { applyKbCursor(); } catch(_){} try { observeBoardCardResizes(); } catch(_){} return out; };
   render.__kbWrapped = true;
 }
 
