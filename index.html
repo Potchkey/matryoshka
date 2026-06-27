@@ -895,8 +895,9 @@ body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);borde
 /* ── HOME (free-form canvas of boards) ── */
 .board-canvas{position:relative;width:100%;min-height:calc(100vh - 140px)}
 /* Stacked view: boards flow vertically full-width, no drag, no overlap */
-.board-canvas.stacked{display:flex;flex-direction:column;gap:16px;padding:16px 20px;min-height:0}
-.board-canvas.stacked .board-card{position:relative !important;left:auto !important;top:auto !important;width:auto !important;height:auto !important;z-index:auto !important}
+/* Stacked view = sideways columns: lists sit side by side and scroll horizontally. */
+.board-canvas.stacked{display:flex;flex-direction:row;flex-wrap:nowrap;gap:16px;padding:16px 20px;min-height:0;overflow-x:auto;align-items:flex-start}
+.board-canvas.stacked .board-card{position:relative !important;left:auto !important;top:auto !important;flex:0 0 340px;width:340px !important;height:auto !important;max-height:calc(100vh - 160px);z-index:auto !important}
 .board-canvas.stacked .board-card .board-card-head{cursor:default}
 .board-canvas.stacked .board-card .board-resize{display:none}
 .board-canvas.stacked .board-card .board-drag,
