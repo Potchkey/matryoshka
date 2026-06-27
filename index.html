@@ -602,7 +602,7 @@ body.view-home .board-canvas{min-height:calc(100vh - 47px)}
    JS per render), so you can grab a column boundary anywhere down the list, not
    just in the header. The line itself is invisible until you hover the column or
    the boundary, then a thin guide runs the full height. */
-.col-resize{position:absolute;top:-5px;right:0;transform:translateX(50%);width:9px;height:calc(100% + 10px);cursor:col-resize;z-index:30;display:flex;justify-content:center;pointer-events:auto;touch-action:none}
+.col-resize{position:absolute;top:-5px;right:-9px;transform:translateX(50%);width:11px;height:calc(100% + 10px);cursor:col-resize;z-index:30;display:flex;justify-content:center;pointer-events:auto;touch-action:none}
 .col-resize::after{content:'';width:2px;height:100%;background:rgba(37,47,124,.09);border-radius:2px;transition:background .12s,width .12s}
 .tbl thead th:hover .col-resize::after{background:rgba(43,177,230,.45)}
 .col-resize:hover::after{background:var(--lg-cyan);width:3px}
@@ -6720,6 +6720,22 @@ function sizeColResizeGrips(){
     tbl.querySelectorAll('.col-resize').forEach(g => { g.style.height = (h + 6) + 'px'; });
   });
 }
+// A board-window table is width:auto, which lets the text column swallow all slack
+// and ignore per-column widths (so column resize did nothing there). Give it an
+// explicit width = sum of its columns so table-layout:fixed honors each width.
+// 28px = .col-handle, 52px = .col-actions (see CSS).
+function tableTargetWidth(tab){
+  if (!SCHEMAS[tab]) return null;
+  return 28 + 52 + getColumns(tab).reduce((s, c) => s + (c.width || 140), 0);
+}
+function fitBoardTableWidths(){
+  document.querySelectorAll('#boardCanvas .board-card').forEach(card => {
+    const tab = card.dataset.tab;
+    const tbl = card.querySelector('.tbl');
+    const w = tab && tbl ? tableTargetWidth(tab) : null;
+    if (tbl && w) tbl.style.width = w + 'px';
+  });
+}
 // While dragging, keep the active guide line full-height even as the table reflows.
 function sizeActiveColResizeGrip(){
   if (!colResizeState || !colResizeState.grip) return;
@@ -6760,7 +6776,7 @@ function observeBoardCardResizes(){
 
 if (typeof render === 'function' && !render.__kbWrapped){
   const _origRender = render;
-  render = function(){ const out = _origRender.apply(this, arguments); try { applyKbCursor(); } catch(_){} try { sizeColResizeGrips(); } catch(_){} try { observeBoardCardResizes(); } catch(_){} return out; };
+  render = function(){ const out = _origRender.apply(this, arguments); try { fitBoardTableWidths(); } catch(_){} try { applyKbCursor(); } catch(_){} try { sizeColResizeGrips(); } catch(_){} try { observeBoardCardResizes(); } catch(_){} return out; };
   render.__kbWrapped = true;
 }
 
@@ -7494,17 +7510,27 @@ function onColResizeMouseDown(e){
   document.body.style.userSelect = 'none';
   colResizeState = {
     th, grip, tab, colKey,
-    startX: e.clientX,
-    startW: th.getBoundingClientRect().width,
+    // Left edge of the column at grab time. It doesn't move while we resize this
+    // column's right boundary, so width = cursorX - leftX keeps the boundary (and
+    // the guide line) glued to the cursor instead of slowly drifting off it.
+    leftX: th.getBoundingClientRect().left,
   };
 }
 
 function onColResizeMouseMove(e){
   if(!colResizeState) return;
-  const w = Math.max(50, Math.round(colResizeState.startW + (e.clientX - colResizeState.startX)));
+  const w = Math.max(50, Math.round(e.clientX - colResizeState.leftX));
   colResizeState.th.style.width = w + 'px';
   state.colWidths[colResizeState.tab] = state.colWidths[colResizeState.tab] || {};
   state.colWidths[colResizeState.tab][colResizeState.colKey] = w;
+  // In a board window the table needs an explicit width (= sum of columns) or the
+  // text column eats the change and the boundary won't move. Grow/shrink it live.
+  const card = colResizeState.th.closest('.board-card');
+  if (card){
+    const tbl = colResizeState.th.closest('table');
+    const tw = tableTargetWidth(colResizeState.tab);
+    if (tbl && tw) tbl.style.width = tw + 'px';
+  }
   sizeActiveColResizeGrip();
 }
 
