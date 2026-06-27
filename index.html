@@ -985,14 +985,20 @@ body.view-dashboard .back-to-dash{display:none}
 .tile-dialog-actions button{padding:7px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border-strong);background:#fff;color:var(--text)}
 .tile-dialog-actions .save{background:var(--lg-blue);color:#fff;border-color:var(--lg-blue)}
 .tile-dialog-actions .save:hover{background:#1a2360}
-.board-card{position:absolute;box-sizing:border-box;width:560px;background:#fff;border:1px solid rgba(37,47,124,.05);border-radius:10px;overflow:visible;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(37,47,124,.04),0 6px 20px rgba(37,47,124,.07);min-width:280px;min-height:120px}
+/* Hedwig-style window: free-positioned card, native browser resize (resize:both),
+   header is the drag handle. boardResizeObserver persists the dragged size. */
+.board-card{position:absolute;box-sizing:border-box;width:520px;min-width:300px;min-height:150px;max-width:1100px;max-height:calc(100vh - 110px);background:#fff;border:1px solid rgba(37,47,124,.14);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(37,47,124,.05),0 8px 24px rgba(37,47,124,.09);resize:both}
+.board-canvas .board-card .board-card-table-wrap{flex:1;min-height:0;overflow:auto}
+.board-card.dragging{z-index:50;opacity:.97;resize:none;box-shadow:0 14px 36px rgba(37,47,124,.22)}
+.board-card::-webkit-resizer{background:transparent}
 .board-card .board-card-table-wrap{border-radius:10px}
 .board-card-table-wrap{flex:1;overflow-x:auto;overflow-y:visible;padding-top:2px}
 .board-resize{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;z-index:6;background:linear-gradient(135deg,transparent 50%,var(--lg-cyan) 50%,var(--lg-cyan) 60%,transparent 60%,transparent 70%,var(--lg-cyan) 70%,var(--lg-cyan) 80%,transparent 80%);opacity:0;border-bottom-right-radius:10px;transition:opacity .15s}
 .board-resize:hover{opacity:1}
 .board-card.dragging{z-index:50;opacity:.97;box-shadow:0 14px 36px rgba(37,47,124,.20);cursor:grabbing}
 /* Title row matches the sublist subpage's section-head: colored dot + bold title, padded. */
-.board-card-head{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;background:transparent;margin-bottom:0}
+.board-card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fafaf7;border-bottom:1px solid rgba(37,47,124,.10);margin-bottom:0;flex-shrink:0;cursor:grab}
+.board-card.dragging .board-card-head{cursor:grabbing}
 .board-canvas.grid .board-card-head,.board-canvas.stacked .board-card-head{cursor:grab}
 .board-card-min{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;line-height:1;padding:3px 7px;border-radius:5px;font-family:inherit;flex-shrink:0;opacity:.6;transition:opacity .12s,background .12s,color .12s}
 .board-card-head:hover .board-card-min{opacity:1}
@@ -3491,7 +3497,7 @@ function defaultState(){
     activeTab: 'home',
     userBoards: {},
     boardOrder: ['client','financing','bd','internal'],
-    homeViewMode: 'grid',
+    homeViewMode: 'free',
     matryoshkaHome: {},
     viewingMatryoshkaHome: false,
     matryoshkaHomeMode: 'free',
@@ -3660,9 +3666,9 @@ function runStateMigrations(s){
     s.boardOrder.splice(insertAt, 0, 'financing');
     s._seededFinancing = true;
   }
-  if(!s.homeViewMode) s.homeViewMode = 'grid';
-  // Retire the fiddly free-positioning canvas — migrate everyone to the grid.
-  if(s.homeViewMode === 'free') s.homeViewMode = 'grid';
+  if(!s.homeViewMode) s.homeViewMode = 'free';
+  // Adopt Hedwig-style free-floating windows — migrate grid users to free.
+  if(s.homeViewMode === 'grid') s.homeViewMode = 'free';
   // Drop any keys that aren't valid live boards anymore (e.g., orphaned user-list keys).
   // We do NOT auto-add the built-in 'internal','client','bd' here — if the user deleted them,
   // they should stay deleted (otherwise they'd resurrect on every reload).
@@ -5617,7 +5623,7 @@ function addColumn(tab){ openAddColumnPicker(tab, document.getElementById('addCo
 
 function ensureHomeModeToggle(){
   let bar = document.getElementById('homeModeToggle');
-  const mode = state.homeViewMode === 'stacked' ? 'stacked' : 'grid';
+  const mode = state.homeViewMode === 'stacked' ? 'stacked' : 'free';
   const zoom = Math.max(0.4, Math.min(2, +state.boardZoom || 1));
   const zoomPct = Math.round(zoom * 100);
   const hasPreferred = !!(state.preferredLayout && state.preferredLayout.boardPos && Object.keys(state.preferredLayout.boardPos).length);
@@ -5633,7 +5639,7 @@ function ensureHomeModeToggle(){
   }
   bar.innerHTML = `
     <div class="hmt-toggle">
-      <button data-mode="grid">Grid</button>
+      <button data-mode="free">Free</button>
       <button data-mode="stacked">Stacked</button>
     </div>
     <button data-act="toggle-all" class="hmt-action" title="${anyCollapsed ? 'Restore every minimized list' : 'Minimize every list'}">${anyCollapsed ? '▴ Max all' : '▾ Min all'}</button>
@@ -6050,12 +6056,10 @@ function openBoardCardMenu(x, y, tabKey){
 }
 
 function renderHome(host){
-  // Board view layouts: 'grid' (default — tidy auto-arranged), 'stacked' (single
-  // column), or legacy 'free' (manual pixel positioning, no longer offered in the
-  // toggle but still honored if a board's state explicitly has it).
-  const mode = state.homeViewMode === 'stacked' ? 'stacked'
-             : state.homeViewMode === 'free'    ? 'free'
-             : 'grid';
+  // Board view layouts (Hedwig-style): 'free' (default — free-floating windows you
+  // drag by the header and resize from the corner with the browser's native handle)
+  // or 'stacked' (single full-width column, no drag/resize).
+  const mode = state.homeViewMode === 'stacked' ? 'stacked' : 'free';
 
   const zoom = Math.max(0.4, Math.min(2, +state.boardZoom || 1));
   // In free mode at non-100% zoom, scale the whole canvas. Compensate width so the
@@ -6063,7 +6067,7 @@ function renderHome(host){
   const zoomStyle = (mode === 'free' && zoom !== 1)
     ? ` style="transform:scale(${zoom});transform-origin:top left;width:${(100/zoom).toFixed(2)}%"`
     : '';
-  const canvasMode = mode === 'stacked' ? 'stacked' : mode === 'grid' ? 'grid' : '';
+  const canvasMode = mode === 'stacked' ? 'stacked' : '';
   host.innerHTML = `<div class="board-canvas ${canvasMode}" id="boardCanvas"${zoomStyle}></div>`;
   ensureHomeModeToggle();
   const canvas = document.getElementById('boardCanvas');
@@ -6124,27 +6128,6 @@ function renderHome(host){
 
     card.appendChild(head);
 
-    // Transparent strip across the top of the card — drag the card from anywhere on it
-    const grip = document.createElement('div');
-    grip.className = 'board-card-grip';
-    grip.title = 'Drag to move';
-    card.appendChild(grip);
-
-    // Board name "tab" sitting on the top edge of the card
-    const nameTab = document.createElement('div');
-    nameTab.className = 'board-card-tab ' + (sch.color || '');
-    nameTab.contentEditable = 'true';
-    nameTab.spellcheck = false;
-    nameTab.title = 'Click to rename';
-    nameTab.textContent = state.titles[tabKey] || sch.label;
-    nameTab.addEventListener('input', () => {
-      state.titles[tabKey] = nameTab.textContent.trim() || sch.label;
-      save(); renderTabs();
-    });
-    nameTab.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); nameTab.blur(); }});
-    // Allow the title bar to act as a drag handle (via threshold, see onBoardMouseDown)
-    card.appendChild(nameTab);
-
     if (collapsed) card.classList.add('board-collapsed');
 
     if(rows.length === 0){
@@ -6168,38 +6151,8 @@ function renderHome(host){
       wireHeader(wrap, tabKey);
     }
 
-    // resize handle (bottom-right corner)
-    const resize = document.createElement('div');
-    resize.className = 'board-resize';
-    resize.title = 'Drag to resize';
-    resize.addEventListener('mousedown', e => {
-      e.preventDefault(); e.stopPropagation();
-      const startX = e.clientX, startY = e.clientY;
-      const startRect = card.getBoundingClientRect();
-      // Canvas may be transform:scale(zoom). Convert viewport deltas → logical pixels
-      // so the card resizes in step with the cursor at any zoom level.
-      const z = Math.max(0.4, Math.min(2, +state.boardZoom || 1));
-      const startW = startRect.width  / z;
-      const startH = startRect.height / z;
-      const onMove = ev => {
-        const w = Math.max(280, Math.round(startW + (ev.clientX - startX) / z));
-        const h = Math.max(120, Math.round(startH + (ev.clientY - startY) / z));
-        card.style.width  = w + 'px';
-        card.style.height = h + 'px';
-      };
-      const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        const w = parseInt(card.style.width, 10) || startRect.width;
-        const h = parseInt(card.style.height, 10) || startRect.height;
-        state.boardSize[tabKey] = { w, h };
-        save();
-      };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
-    card.appendChild(resize);
-
+    // No custom resize handle — the card uses the browser's native resize:both
+    // (see .board-card CSS) and boardResizeObserver persists the new size.
     canvas.appendChild(card);
   });
 }
@@ -6736,9 +6689,40 @@ function sizeActiveColResizeGrip(){
   if (tbl) colResizeState.grip.style.height = (tbl.offsetHeight + 6) + 'px';
 }
 
+// Persist Hedwig-style native (resize:both) window sizing. Skips the initial
+// observation of each freshly-rendered card (so content-height windows aren't
+// frozen) and only saves a genuine user resize; skips during a drag and on
+// detached nodes; debounced. WeakSet keys on the live node, which is recreated
+// each render, so each render's initial fire is naturally skipped.
+let _boardResizeSaveTimer = null;
+const _observedBoardCards = (typeof WeakSet !== 'undefined') ? new WeakSet() : null;
+const boardResizeObserver = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(entries => {
+  if (boardDragState) return;
+  let dirty = false;
+  entries.forEach(entry => {
+    const el = entry.target;
+    if (!el.classList || !el.classList.contains('board-card') || !document.contains(el)) return;
+    if (_observedBoardCards && !_observedBoardCards.has(el)) { _observedBoardCards.add(el); return; }
+    const tab = el.dataset.tab;
+    if (!tab) return;
+    const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
+    if (w < 80 || h < 80) return;
+    state.boardSize = state.boardSize || {};
+    const prev = state.boardSize[tab];
+    if (!prev || prev.w !== w || prev.h !== h){ state.boardSize[tab] = { w, h }; dirty = true; }
+  });
+  if (dirty){ clearTimeout(_boardResizeSaveTimer); _boardResizeSaveTimer = setTimeout(save, 150); }
+}) : null;
+
+function observeBoardCardResizes(){
+  if (!boardResizeObserver) return;
+  boardResizeObserver.disconnect();
+  document.querySelectorAll('#boardCanvas .board-card').forEach(el => boardResizeObserver.observe(el));
+}
+
 if (typeof render === 'function' && !render.__kbWrapped){
   const _origRender = render;
-  render = function(){ const out = _origRender.apply(this, arguments); try { applyKbCursor(); } catch(_){} try { sizeColResizeGrips(); } catch(_){} return out; };
+  render = function(){ const out = _origRender.apply(this, arguments); try { applyKbCursor(); } catch(_){} try { sizeColResizeGrips(); } catch(_){} try { observeBoardCardResizes(); } catch(_){} return out; };
   render.__kbWrapped = true;
 }
 
@@ -7059,7 +7043,9 @@ function onBoardMouseDown(e){
   const canvas = card.parentElement;
   if(!canvas || !canvas.classList.contains('board-canvas')) return;
   if(canvas.classList.contains('stacked') || canvas.classList.contains('grid')) return;
-  const onTab = !!e.target.closest('.board-card-tab');
+  // Treat the editable title like the old name-tab: a stationary click focuses it
+  // for rename; only a >4px drag moves the card (so clicking to edit still works).
+  const onTab = !!e.target.closest('.board-card-tab, .board-card-title');
   const onHandle = !!e.target.closest('.ctl.drag');
   const onGrip = !!e.target.closest('.board-card-grip');
   const cardRect = card.getBoundingClientRect();
