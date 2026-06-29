@@ -2,7 +2,7 @@
 
 A multi-board task tracker that works like a Russian doll — each board nested inside a single workspace view, with a mood-board home that shows all your lists at once.
 
-Built by [Lawgorithm Advisors](https://lawgorithm.xyz).
+Built by Potchkey Labs.
 
 ## Features
 
