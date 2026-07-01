@@ -931,6 +931,15 @@ body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);borde
 .board-canvas.stacked .board-card .board-resize{display:none}
 .board-canvas.stacked .board-card .board-drag,
 .board-canvas.stacked .board-card .board-head-spacer{cursor:default}
+/* Stacked (kanban) cards are a fixed narrow width, so fit the table to the card
+   and let columns auto-size — long cell text wraps to the next line instead of
+   running off the side under horizontal scroll. */
+/* Stacked (kanban) cards are narrow. Give the title (first) column a generous
+   width so long text wraps to the next line instead of being pinched; the
+   secondary columns keep their widths and scroll horizontally within the card. */
+.board-canvas.stacked .board-card .tbl thead th.col-sortable,
+.board-canvas.stacked .board-card .tbl tbody td.cell-first-data{width:190px !important}
+.board-canvas.stacked .board-card .cell-edit{white-space:normal;overflow:visible;text-overflow:clip}
 /* Grid view: lists auto-arrange in a tidy responsive grid — no manual
    positioning, no resize, no overlap. Reorder by dragging a list's header. */
 .board-canvas.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;padding:16px 20px;min-height:0;align-items:start;align-content:start}
