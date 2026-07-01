@@ -6399,7 +6399,15 @@ function renderRow(tab, row){
     if (anchorEl && anchorEl.closest && anchorEl.closest('ul, ol')) return; // bullet indent — let doc handler run
     e.preventDefault();
     e.stopPropagation();
-    focusAdjacentCell(e.target, e.shiftKey ? 'prev' : 'next');
+    // On the task (first) column, Tab indents / Shift+Tab outdents the row so you
+    // can build sub-part lists while typing. Other columns keep cell-to-cell tabbing.
+    if (e.target.closest('.cell-first-data')){
+      const colKey = e.target.closest('td')?.dataset.col;
+      bulkShiftIndent(tab, [row.id], e.shiftKey ? -1 : 1);
+      setTimeout(() => focusCellInRow(tab, row.id, colKey), 0);
+    } else {
+      focusAdjacentCell(e.target, e.shiftKey ? 'prev' : 'next');
+    }
   });
 
   // Build the checkbox once — it'll be slotted into the first data cell so it indents with the text
@@ -6745,19 +6753,29 @@ function renderText(tab, row, key, val, placeholder){
     const anchorEl = anchor && (anchor.nodeType === 1 ? anchor : anchor.parentElement);
     if (anchorEl && anchorEl.closest && anchorEl.closest('li')) return;
     e.preventDefault();
-    const tr = div.closest('tr');
-    if (tr && !tr.nextElementSibling) {
-      // Bottom of the table — create a fresh row and land in the same column.
-      addRowTo(tab);
-      setTimeout(() => focusCellInLastRow(tab, key), 0);
-    } else {
-      focusCellBelow(div);
-    }
+    // Enter makes the next line right below at the SAME indent (so a sub-part
+    // list keeps its nesting), then lands the cursor there.
+    const arr = state.rows[tab] || [];
+    const idx = arr.findIndex(r => r.id === row.id);
+    insertRowAfter(tab, row.id);   // inherits this row's indent
+    const created = (state.rows[tab] || [])[idx + 1];
+    if (created) setTimeout(() => focusCellInRow(tab, created.id, key), 0);
   });
   return div;
 }
 
 // After addRowTo + render, find the freshly-added row's cell for `colKey` and focus it.
+// Focus a specific row's cell (by rowId + column), cursor at end. Used after
+// indent/outdent and Enter re-render so editing continues where expected.
+function focusCellInRow(tab, rowId, colKey){
+  const tr = document.querySelector(`tr[data-row-id="${rowId}"]`);
+  if (!tr) return;
+  const td = tr.querySelector(`td[data-col="${colKey}"]`);
+  const editable = (td && td.querySelector('.cell-edit, [contenteditable="true"]')) || tr.querySelector('.cell-edit, [contenteditable="true"]');
+  if (!editable) return;
+  editable.focus();
+  try { const range = document.createRange(); range.selectNodeContents(editable); range.collapse(false); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); } catch(_){}
+}
 function focusCellInLastRow(tab, colKey){
   const rows = state.rows[tab];
   if (!Array.isArray(rows) || !rows.length) return;
