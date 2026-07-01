@@ -454,8 +454,10 @@ body{
 #matryoshkaHomeBtn{font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:inherit;padding:5px 10px;border-radius:7px;white-space:nowrap;letter-spacing:.01em}
 #matryoshkaHomeBtn:hover{background:rgba(37,47,124,.05);color:var(--text)}
 #matryoshkaHomeBtn.active{color:var(--lg-blue);background:rgba(37,47,124,.07)}
-#skinPickerBtn{font-size:12px;font-weight:500;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:inherit;padding:5px 10px;border-radius:7px;white-space:nowrap}
-#skinPickerBtn:hover{background:rgba(37,47,124,.05);color:var(--text)}
+#skinPickerBtn,#shortcutsBtn{font-size:12px;font-weight:500;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:inherit;padding:5px 10px;border-radius:7px;white-space:nowrap}
+#skinPickerBtn:hover,#shortcutsBtn:hover{background:rgba(37,47,124,.05);color:var(--text)}
+body[data-skin="dark-neon"] #shortcutsBtn{color:#9ba8bf}
+body[data-skin="dark-neon"] #shortcutsBtn:hover{color:#f8fafc;background:rgba(255,75,216,.08)}
 #skinPickerBtn.open{color:var(--text);background:rgba(37,47,124,.06)}
 .skin-menu{position:fixed;background:var(--card);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 10px 32px rgba(37,47,124,.18);padding:10px;z-index:9999;min-width:200px}
 .skin-menu-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:2px 8px 8px}
@@ -1456,6 +1458,7 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
   <span class="logo"><span class="doll">🪆</span>Matryoshka</span>
   <button class="title board-switcher" id="boardSwitcher" type="button"></button>
   <button id="matryoshkaHomeBtn" type="button" title="Sentinel — all boards at a glance" style="display:none">Sentinel</button>
+  <button id="shortcutsBtn" type="button" title="Keyboard shortcuts (or press ?)" onclick="_kbToggleHelp()">Shortcuts</button>
   <button id="skinPickerBtn" type="button" title="Change skin">Skins</button>
   <button class="sync-status" id="syncStatus" type="button" title="Click to pull the latest from the cloud">
     <span class="sync-dot"></span>
