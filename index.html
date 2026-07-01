@@ -274,10 +274,10 @@ body[data-skin="dark-neon"] .board-card{
   border-left:none;
 }
 /* Neon left accent per color class */
-body[data-skin="dark-neon"] .board-card.bc-internal{border-top:2px solid #ffd21f;box-shadow:0 0 0 1px rgba(255,210,31,.08),0 0 24px rgba(255,210,31,.08),0 18px 60px rgba(0,0,0,.45)}
-body[data-skin="dark-neon"] .board-card.bc-client{border-top:2px solid #ff4bd8;box-shadow:0 0 0 1px rgba(255,75,216,.1),0 0 24px rgba(255,75,216,.12),0 18px 60px rgba(0,0,0,.45)}
-body[data-skin="dark-neon"] .board-card.bc-bd{border-top:2px solid #00f5ff;box-shadow:0 0 0 1px rgba(0,245,255,.1),0 0 24px rgba(0,245,255,.12),0 18px 60px rgba(0,0,0,.45)}
-body[data-skin="dark-neon"] .board-card.bc-navy{border-top:2px solid #a855f7;box-shadow:0 0 0 1px rgba(168,85,247,.1),0 0 24px rgba(168,85,247,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .board-card.bc-internal{border:2px solid #ffd21f;box-shadow:0 0 0 1px rgba(255,210,31,.08),0 0 24px rgba(255,210,31,.08),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .board-card.bc-client{border:2px solid #ff4bd8;box-shadow:0 0 0 1px rgba(255,75,216,.1),0 0 24px rgba(255,75,216,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .board-card.bc-bd{border:2px solid #00f5ff;box-shadow:0 0 0 1px rgba(0,245,255,.1),0 0 24px rgba(0,245,255,.12),0 18px 60px rgba(0,0,0,.45)}
+body[data-skin="dark-neon"] .board-card.bc-navy{border:2px solid #a855f7;box-shadow:0 0 0 1px rgba(168,85,247,.1),0 0 24px rgba(168,85,247,.12),0 18px 60px rgba(0,0,0,.45)}
 body[data-skin="dark-neon"] .board-card-title{color:#f8fafc}
 body[data-skin="dark-neon"] .board-card-head{border-bottom:1px solid rgba(255,75,216,.1)}
 body[data-skin="dark-neon"] .board-card-count{color:#9ba8bf;background:rgba(255,75,216,.1);border-color:rgba(255,75,216,.25)}
@@ -349,10 +349,10 @@ body[data-skin="80s-lite"] .board-card{
   border:1px solid rgba(0,0,0,.08);
   border-left:none;
 }
-body[data-skin="80s-lite"] .board-card.bc-internal{border-top:3px solid #f97316;}
-body[data-skin="80s-lite"] .board-card.bc-client  {border-top:3px solid #06b6d4;}
-body[data-skin="80s-lite"] .board-card.bc-bd      {border-top:3px solid #8b5cf6;}
-body[data-skin="80s-lite"] .board-card.bc-navy    {border-top:3px solid #ec4899;}
+body[data-skin="80s-lite"] .board-card.bc-internal{border:3px solid #f97316;}
+body[data-skin="80s-lite"] .board-card.bc-client  {border:3px solid #06b6d4;}
+body[data-skin="80s-lite"] .board-card.bc-bd      {border:3px solid #8b5cf6;}
+body[data-skin="80s-lite"] .board-card.bc-navy    {border:3px solid #ec4899;}
 /* Section cards */
 body[data-skin="80s-lite"] .section-card{background:#ffffff;border-color:rgba(0,0,0,.08);}
 /* Sidebar active item — orange highlight */
@@ -1092,12 +1092,13 @@ body.view-dashboard .back-to-dash{display:none}
 .board-card-head .board-card-add,
 .board-card-head .board-card-open{display:none}
 /* Colored stripe on the left edge of each card */
-.board-card{border-left:3px solid var(--border)}
-.board-card.bc-internal{border-left-color:var(--lg-yellow)}
-.board-card.bc-client{border-left-color:var(--lg-pink)}
-.board-card.bc-bd{border-left-color:var(--lg-cyan)}
-.board-card.bc-navy{border-left-color:var(--lg-blue)}
-.board-card.bc-white{border-left-color:#fff;box-shadow:inset 3px 0 0 0 var(--lg-blue),0 1px 3px rgba(37,47,124,.06),0 4px 14px rgba(37,47,124,.04)}
+/* Board color outlines the whole window (all four sides), not just the left edge. */
+.board-card{border:2px solid var(--border)}
+.board-card.bc-internal{border-color:var(--lg-yellow)}
+.board-card.bc-client{border-color:var(--lg-pink)}
+.board-card.bc-bd{border-color:var(--lg-cyan)}
+.board-card.bc-navy{border-color:var(--lg-blue)}
+.board-card.bc-white{border-color:rgba(37,47,124,.18)}
 /* Board-name tab sitting flush at the top of the card (fully inside, not clipped) */
 /* Manila-folder tab: title sits ABOVE the card top edge with rounded top corners and a
    flat bottom that visually merges into the card. The card's overflow is `visible`, and
