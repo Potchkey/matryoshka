@@ -3957,11 +3957,12 @@ function emptyBoardData(){
            colOrder:{}, boardOrder:[], userBoards:{}, activeTab:'home', bgColor:'', brandImage:'', hiddenCols:{} };
 }
 // Plain-text of a row's primary (title) column, for naming a nested board.
-function rowTitleText(tab, row){
-  const cols = getColumns(tab); const key = cols[0] && cols[0].key;
+function rowColText(tab, row, idx){
+  const cols = getColumns(tab); const key = cols[idx] && cols[idx].key;
   const tmp = document.createElement('div'); tmp.innerHTML = (key ? row[key] : '') || '';
   return (tmp.textContent || '').trim();
 }
+function rowTitleText(tab, row){ return rowColText(tab, row, 0); }
 // Matryoshka nesting: turn a row into its own board and drill into it. If the row
 // is already a board, just open it. The new board records its parent (board + row)
 // so the breadcrumb can show the full path back up.
@@ -3970,20 +3971,24 @@ function makeRowIntoBoard(tab, rowId){
   const row = arr.find(r => r.id === rowId);
   if(!row) return;
   if(row.boardId && state.boards && state.boards[row.boardId]){ switchBoard(row.boardId); return; }
-  const title = rowTitleText(tab, row) || 'Untitled';
+  const client = rowTitleText(tab, row) || 'Untitled';       // 1st column (client name)
+  const matter = rowColText(tab, row, 1);                    // 2nd column (matter)
+  const seedText = matter || client;
   const id = bid();
   state.boards[id] = {
-    title,
+    // title is a fallback; the breadcrumb derives the live title from the row's
+    // client column (see boardDisplayTitle), so renaming the client updates it.
+    title: client,
     parent: { boardId: state.activeBoardId, tab, rowId },
     data: emptyBoardData(),
   };
   row.boardId = id;
   switchBoard(id); // drill into the (empty) nested board
-  // Seed it with the line item so it carries over instead of opening blank:
-  // a list named after the item, with the item itself as its first row.
-  const listKey = makeUserList(title);
+  // Seed the sub-board with the MATTER — that's the work you drill in to break
+  // down (a list named for the matter, with the matter as its first row).
+  const listKey = makeUserList(seedText);
   state.rows[listKey] = state.rows[listKey] || [];
-  state.rows[listKey].push({ id: rid(), task: title, dateAdded: todayISO(), dateResolved: '' });
+  state.rows[listKey].push({ id: rid(), task: seedText, dateAdded: todayISO(), dateResolved: '' });
   state.activeTab = 'home';
   save();
   render();
@@ -5222,6 +5227,30 @@ function boardAncestry(id){
   return chain; // [topLevel, ..., id]
 }
 
+// A nested board's display title is derived LIVE from its parent row's first
+// (client) column, so renaming the client updates the breadcrumb/switcher. Falls
+// back to the stored title if the parent row is gone.
+function boardDisplayTitle(id){
+  const b = state.boards && state.boards[id];
+  if(!b) return 'Board';
+  const p = b.parent;
+  if(p && state.boards[p.boardId]){
+    const isActiveParent = p.boardId === state.activeBoardId;
+    const pdata = state.boards[p.boardId].data || {};
+    const rows = isActiveParent ? (state.rows[p.tab] || []) : ((pdata.rows && pdata.rows[p.tab]) || []);
+    const row = rows.find(r => r.id === p.rowId);
+    if(row){
+      const ub = isActiveParent ? (state.userBoards || {}) : (pdata.userBoards || {});
+      const cols = (ub[p.tab] && ub[p.tab].columns) || (SCHEMAS[p.tab] && SCHEMAS[p.tab].columns) || [];
+      const key = cols[0] && cols[0].key;
+      const tmp = document.createElement('div'); tmp.innerHTML = (key ? row[key] : '') || '';
+      const t = (tmp.textContent || '').trim();
+      if(t) return t;
+    }
+  }
+  return b.title || 'Untitled';
+}
+
 function renderBoardSwitcher(){
   const btn = document.getElementById('boardSwitcher');
   const crumbs = document.getElementById('boardCrumbs');
@@ -5234,10 +5263,10 @@ function renderBoardSwitcher(){
     const parentId = !state.viewingMatryoshkaHome && cur && cur.parent && cur.parent.boardId;
     const hasParent = parentId && state.boards[parentId];
     upBtn.style.display = hasParent ? '' : 'none';
-    upBtn.title = hasParent ? ('Back up to ' + (state.boards[parentId].title || 'the layer above')) : '';
+    upBtn.title = hasParent ? ('Back up to ' + (boardDisplayTitle(parentId) || 'the layer above')) : '';
     upBtn.onclick = hasParent ? (e => { e.stopPropagation(); switchBoard(parentId); }) : null;
   }
-  btn.textContent = state.viewingMatryoshkaHome ? 'Sentinel' : (cur?.title || 'Untitled board');
+  btn.textContent = state.viewingMatryoshkaHome ? 'Sentinel' : (boardDisplayTitle(state.activeBoardId) || 'Untitled board');
   // Breadcrumb: Sentinel › [ancestor boards] › (current board is the switcher itself).
   if(crumbs){
     crumbs.innerHTML = '';
@@ -5253,7 +5282,7 @@ function renderBoardSwitcher(){
       boardAncestry(state.activeBoardId).slice(0, -1).forEach(aid => {
         const c = document.createElement('button');
         c.type = 'button'; c.className = 'crumb';
-        c.textContent = state.boards[aid]?.title || 'Board';
+        c.textContent = boardDisplayTitle(aid) || 'Board';
         c.addEventListener('click', e => { e.stopPropagation(); switchBoard(aid); });
         crumbs.appendChild(c);
         sep();
