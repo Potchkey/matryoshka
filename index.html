@@ -447,6 +447,10 @@ body{
 .sync-status.syncing .sync-dot{background:var(--lg-cyan);animation:sync-pulse 1s ease-in-out infinite}
 .sync-status.error .sync-dot{background:var(--lg-pink)}
 @keyframes sync-pulse{0%,100%{opacity:.3}50%{opacity:1}}
+.board-up-btn{font-size:12px;font-weight:600;color:var(--lg-blue);background:rgba(37,47,124,.07);border:1px solid rgba(37,47,124,.14);cursor:pointer;font-family:inherit;padding:4px 10px;border-radius:7px;white-space:nowrap;margin-right:2px}
+.board-up-btn:hover{background:rgba(37,47,124,.13)}
+body[data-skin="dark-neon"] .board-up-btn{color:#00f5ff;background:rgba(0,245,255,.08);border-color:rgba(0,245,255,.25)}
+body[data-skin="dark-neon"] .board-up-btn:hover{background:rgba(0,245,255,.16)}
 .board-crumbs{display:inline-flex;align-items:center;gap:2px}
 .board-crumbs .crumb{font-size:13px;font-weight:500;color:var(--muted);background:transparent;border:none;cursor:pointer;font-family:inherit;padding:5px 6px;border-radius:6px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
 .board-crumbs .crumb:hover{color:var(--text);background:rgba(37,47,124,.06)}
@@ -1467,6 +1471,7 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
 <div class="header-zone" id="headerZone"></div>
 <div class="header">
   <span class="logo"><span class="doll">🪆</span>Matryoshka</span>
+  <button id="boardUpBtn" type="button" class="board-up-btn" style="display:none">↑ Up</button>
   <span id="boardCrumbs" class="board-crumbs"></span>
   <button class="title board-switcher" id="boardSwitcher" type="button"></button>
   <button id="matryoshkaHomeBtn" type="button" title="Sentinel — all boards at a glance" style="display:none">Sentinel</button>
@@ -5223,6 +5228,15 @@ function renderBoardSwitcher(){
   if(!btn) return;
   const cur = state.boards?.[state.activeBoardId];
   btn.style.display = '';
+  // "Up" button — appears inside a nested board; goes up one Matryoshka layer.
+  const upBtn = document.getElementById('boardUpBtn');
+  if(upBtn){
+    const parentId = !state.viewingMatryoshkaHome && cur && cur.parent && cur.parent.boardId;
+    const hasParent = parentId && state.boards[parentId];
+    upBtn.style.display = hasParent ? '' : 'none';
+    upBtn.title = hasParent ? ('Back up to ' + (state.boards[parentId].title || 'the layer above')) : '';
+    upBtn.onclick = hasParent ? (e => { e.stopPropagation(); switchBoard(parentId); }) : null;
+  }
   btn.textContent = state.viewingMatryoshkaHome ? 'Sentinel' : (cur?.title || 'Untitled board');
   // Breadcrumb: Sentinel › [ancestor boards] › (current board is the switcher itself).
   if(crumbs){
