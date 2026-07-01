@@ -5958,10 +5958,16 @@ function renderMatryoshkaHome(canvas){
       if(listsWithTasks.length === 0){
         body.innerHTML = `<div style="padding:12px 14px;font-size:12.5px;color:var(--muted)">No tasks yet.</div>`;
       } else {
+        // Plain text of a cell value (strip any inline HTML) for the compact preview.
+        const cellText = v => { if(!v) return ''; const d = document.createElement('div'); d.innerHTML = v; return (d.textContent || '').trim(); };
         listsWithTasks.forEach(listKey => {
           const rows = visibleRowsAfterCollapse(bRows[listKey] || []);
           const listTitle = bTitles[listKey] || listKey;
-          const firstKey = firstColKeyOf(listKey);
+          const listCols = (bUserBoards[listKey] && bUserBoards[listKey].columns) || (SCHEMAS[listKey] && SCHEMAS[listKey].columns) || [];
+          const firstKey = listCols[0] && listCols[0].key;
+          // "What to do" = the next plain-text column after the first (skip status/who/due/date).
+          const descCol = listCols.slice(1).find(c => !c.kind);
+          const descKey = descCol && descCol.key;
           const listHead = document.createElement('div');
           listHead.style.cssText = 'padding:5px 14px 3px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-top:1px solid var(--border)';
           listHead.textContent = listTitle;
@@ -5971,10 +5977,12 @@ function renderMatryoshkaHome(canvas){
             const taskDiv = document.createElement('div');
             taskDiv.className = 'mc-task' + (isDone ? ' mc-done' : '');
             taskDiv.style.setProperty('--mc-ind', Math.max(0, row.indent | 0));
-            const rawTask = (firstKey && row[firstKey]) || row.task || row.matter || row.client || row.prospect || '';
-            const taskHtml = /<\/?[a-z][^>]*>/i.test(rawTask)
-              ? sanitizeRowHtml(rawTask) : escapeHtml(rawTask);
-            taskDiv.innerHTML = `<input type="checkbox" ${isDone?'checked':''}><span class="mc-task-text">${taskHtml}</span>`;
+            // Client name (first column) + what to do (next text column), " - " separated.
+            const parts = [
+              cellText(firstKey && row[firstKey]) || cellText(row.task || row.matter || row.client || row.prospect),
+              cellText(descKey && row[descKey]),
+            ].filter(Boolean);
+            taskDiv.innerHTML = `<input type="checkbox" ${isDone?'checked':''}><span class="mc-task-text">${escapeHtml(parts.join(' - '))}</span>`;
             body.appendChild(taskDiv);
           });
         });
