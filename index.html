@@ -864,8 +864,16 @@ body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);borde
 .row-notes-btn{background:transparent;border:none;color:var(--muted);font-size:12px;line-height:1;cursor:pointer;padding:0 2px;border-radius:4px;height:14px;vertical-align:middle;opacity:.7;filter:grayscale(1);transition:opacity .12s,filter .12s}
 .row-notes-btn:hover{opacity:1;filter:none;background:rgba(43,177,230,.10)}
 .row-notes-btn.has-notes{opacity:1;filter:none}
-.row-board-btn{background:transparent;border:none;font-size:14px;line-height:1;cursor:pointer;padding:0 4px;border-radius:4px;height:18px;vertical-align:middle;transition:transform .12s,background .12s;margin-left:2px;font-family:inherit}
-.row-board-btn:hover{background:rgba(37,47,124,.10);transform:scale(1.12)}
+.row-board-doll{font-size:14px;line-height:1;vertical-align:middle;margin-left:2px}
+.row-board-btn{background:transparent;border:none;color:var(--lg-blue,#252f7c);font-size:13px;line-height:1;cursor:pointer;padding:0 3px;border-radius:4px;height:18px;vertical-align:middle;transition:transform .12s,background .12s;margin-left:1px;font-family:inherit}
+.row-board-btn:hover{background:rgba(37,47,124,.12);transform:scale(1.15)}
+.row-board-expand{color:var(--muted,#8a8577)}
+.board-preview-row > td{padding:0 0 8px 0;background:transparent}
+.board-preview{margin:2px 10px 4px 38px;padding:8px 12px;background:rgba(37,47,124,.045);border-left:2px solid rgba(37,47,124,.35);border-radius:0 8px 8px 0;font-size:12px}
+.board-preview-list{font-weight:600;color:var(--lg-blue,#252f7c);margin:4px 0 2px;font-size:11px;letter-spacing:.02em}
+.board-preview-list:first-child{margin-top:0}
+.board-preview-item{color:#4a463d;padding:1px 0 1px 10px;line-height:1.5}
+.board-preview-muted{color:var(--muted,#a8a293);font-style:italic}
 .row-cut-btn{background:transparent;border:none;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;padding:0 4px;border-radius:4px;height:18px;vertical-align:middle;opacity:.55;transition:opacity .12s,color .12s,background .12s;margin-left:2px;font-family:inherit}
 .row-cut-btn:hover{opacity:1;color:var(--lg-pink);background:rgba(236,5,140,.10)}
 /* When a row has notes, force the actions cell to stay visible so the indicator is always seen. */
@@ -3963,6 +3971,73 @@ function rowColText(tab, row, idx){
   return (tmp.textContent || '').trim();
 }
 function rowTitleText(tab, row){ return rowColText(tab, row, 0); }
+// Which board rows are showing an inline peek of their sub-board (▾ toggle).
+// Ephemeral per page session — resets on reload, which is fine for a preview.
+let _boardRowExpanded = {};
+// Plain text of a value in another board's data (no live SCHEMAS for that board).
+function boardCellText(key, row){
+  const tmp = document.createElement('div'); tmp.innerHTML = (key ? row[key] : '') || '';
+  return (tmp.textContent || '').trim();
+}
+// An inline "peek" row placed under a board-row: shows the sub-board's lists and
+// their items without navigating. Reads the sub-board's stored data directly.
+function renderBoardPreviewRow(tab, row){
+  const boardId = row.boardId;
+  const board = state.boards && state.boards[boardId];
+  const tr = document.createElement('tr');
+  tr.className = 'board-preview-row';
+  const td = document.createElement('td');
+  td.colSpan = 99;
+  const box = document.createElement('div');
+  box.className = 'board-preview';
+  const data = (board && board.data) || {};
+  const bOrder = data.boardOrder || [];
+  const bRows = data.rows || {};
+  const bTitles = data.titles || {};
+  const bUB = data.userBoards || {};
+  const firstKeyOf = (lk) => {
+    const cols = (bUB[lk] && bUB[lk].columns) || (SCHEMAS[lk] && SCHEMAS[lk].columns) || [];
+    return cols[0] && cols[0].key;
+  };
+  const nextTextKeyOf = (lk) => {
+    const cols = (bUB[lk] && bUB[lk].columns) || (SCHEMAS[lk] && SCHEMAS[lk].columns) || [];
+    const c = cols.slice(1).find(c => !c.type || c.type === 'text');
+    return c && c.key;
+  };
+  let any = false;
+  bOrder.forEach(lk => {
+    const listRows = (bRows[lk] || []);
+    const k0 = firstKeyOf(lk), k1 = nextTextKeyOf(lk);
+    const head = document.createElement('div');
+    head.className = 'board-preview-list';
+    head.textContent = bTitles[lk] || lk;
+    box.appendChild(head); any = true;
+    if(!listRows.length){
+      const em = document.createElement('div');
+      em.className = 'board-preview-item board-preview-muted';
+      em.textContent = '(empty)';
+      box.appendChild(em);
+      return;
+    }
+    listRows.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'board-preview-item';
+      const a = boardCellText(k0, r);
+      const b = k1 ? boardCellText(k1, r) : '';
+      item.textContent = [a, b].filter(Boolean).join(' - ') || '(untitled)';
+      box.appendChild(item);
+    });
+  });
+  if(!any){
+    const em = document.createElement('div');
+    em.className = 'board-preview-muted';
+    em.textContent = 'Empty sub-board — click → to open and add items.';
+    box.appendChild(em);
+  }
+  td.appendChild(box);
+  tr.appendChild(td);
+  return tr;
+}
 // Matryoshka nesting: turn a row into its own board and drill into it. If the row
 // is already a board, just open it. The new board records its parent (board + row)
 // so the breadcrumb can show the full path back up.
@@ -5683,7 +5758,11 @@ function renderSection(){
   wireHeader(host, tab);
 
   const tbody = document.getElementById('tbody');
-  rows.forEach(row => tbody.appendChild(renderRow(tab, row)));
+  rows.forEach(row => {
+    tbody.appendChild(renderRow(tab, row));
+    if(row.boardId && state.boards && state.boards[row.boardId] && _boardRowExpanded[row.id])
+      tbody.appendChild(renderBoardPreviewRow(tab, row));
+  });
 }
 
 // Build the <th> for one column, with a label span (editable), a tiny × for user cols, and a resize grip.
@@ -6395,7 +6474,11 @@ function renderHome(host){
           <tbody></tbody>
         </table>`;
       const tbody = wrap.querySelector('tbody');
-      rows.forEach(row => tbody.appendChild(renderRow(tabKey, row)));
+      rows.forEach(row => {
+        tbody.appendChild(renderRow(tabKey, row));
+        if(row.boardId && state.boards && state.boards[row.boardId] && _boardRowExpanded[row.id])
+          tbody.appendChild(renderBoardPreviewRow(tabKey, row));
+      });
       card.appendChild(wrap);
       wireHeader(wrap, tabKey);
     }
@@ -6513,16 +6596,31 @@ function renderRow(tab, row){
       const wrap = document.createElement('div');
       wrap.className = 'first-cell-wrap';
       wrap.appendChild(cb);
-      // Matryoshka: if this row is its own board, a doll at the start of the line
-      // clicks into it.
+      // Matryoshka: if this row is its own board, show a doll + two arrows at the
+      // start of the line — ▾ expands an inline preview of the sub-board, → drills in.
       if (row.boardId && state.boards && state.boards[row.boardId]){
         tr.classList.add('row-is-board');
-        const enterBtn = document.createElement('button');
-        enterBtn.className = 'row-board-btn';
-        enterBtn.title = 'Open board';
-        enterBtn.textContent = '🪆';
-        enterBtn.addEventListener('click', e => { e.stopPropagation(); closeFloatingRowMenu(); switchBoard(row.boardId); });
-        wrap.appendChild(enterBtn);
+        const doll = document.createElement('span');
+        doll.className = 'row-board-doll';
+        doll.textContent = '🪆';
+        wrap.appendChild(doll);
+        const expanded = !!_boardRowExpanded[row.id];
+        const downBtn = document.createElement('button');
+        downBtn.className = 'row-board-btn row-board-expand';
+        downBtn.title = expanded ? 'Hide sub-board preview' : 'Preview sub-board';
+        downBtn.textContent = expanded ? '▾' : '▸';
+        downBtn.addEventListener('click', e => {
+          e.stopPropagation(); closeFloatingRowMenu();
+          if(_boardRowExpanded[row.id]) delete _boardRowExpanded[row.id]; else _boardRowExpanded[row.id] = true;
+          render();
+        });
+        wrap.appendChild(downBtn);
+        const rightBtn = document.createElement('button');
+        rightBtn.className = 'row-board-btn row-board-open';
+        rightBtn.title = 'Open sub-board';
+        rightBtn.textContent = '→';
+        rightBtn.addEventListener('click', e => { e.stopPropagation(); closeFloatingRowMenu(); switchBoard(row.boardId); });
+        wrap.appendChild(rightBtn);
       }
       wrap.appendChild(inner);
       // Collapse arrow — only shown when this row has children below it (in the
