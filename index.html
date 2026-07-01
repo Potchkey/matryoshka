@@ -5251,6 +5251,31 @@ function boardDisplayTitle(id){
   return b.title || 'Untitled';
 }
 
+// Rename the current board from the breadcrumb. For a nested board this writes
+// the new name back to the parent row's client (first) column — the source of
+// truth — so the row and breadcrumb stay in sync. Top-level boards rename their
+// own title.
+function renameCurrentBoard(newText){
+  newText = (newText || '').trim();
+  const id = state.activeBoardId;
+  const b = state.boards && state.boards[id];
+  if(!b || !newText){ render(); return; }
+  b.title = newText;
+  const p = b.parent;
+  if(p && state.boards[p.boardId]){
+    const pdata = state.boards[p.boardId].data || {};
+    const rows = (pdata.rows && pdata.rows[p.tab]) || [];
+    const row = rows.find(r => r.id === p.rowId);
+    if(row){
+      const ub = pdata.userBoards || {};
+      const cols = (ub[p.tab] && ub[p.tab].columns) || (SCHEMAS[p.tab] && SCHEMAS[p.tab].columns) || [];
+      const key = cols[0] && cols[0].key;
+      if(key) row[key] = newText;
+    }
+  }
+  save(); render();
+}
+
 function renderBoardSwitcher(){
   const btn = document.getElementById('boardSwitcher');
   const crumbs = document.getElementById('boardCrumbs');
@@ -5292,8 +5317,33 @@ function renderBoardSwitcher(){
   if(!btn.dataset.wired){
     btn.dataset.wired = '1';
     btn.addEventListener('click', e => {
+      if(btn.dataset.editing === '1') return; // ignore clicks while renaming
       e.stopPropagation();
       openBoardMenu(btn);
+    });
+    // Double-click the current board name to rename it (renames the client on a
+    // nested board). Enter/blur commits, Esc cancels.
+    btn.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      if(state.viewingMatryoshkaHome) return;
+      closeBoardMenu();
+      btn.dataset.editing = '1';
+      btn.contentEditable = 'true';
+      btn.spellcheck = false;
+      btn.focus();
+      try { const r=document.createRange(); r.selectNodeContents(btn); const s=window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch(_){}
+    });
+    btn.addEventListener('keydown', e => {
+      if(btn.dataset.editing !== '1') return;
+      e.stopPropagation();
+      if(e.key === 'Enter'){ e.preventDefault(); btn.blur(); }
+      else if(e.key === 'Escape'){ e.preventDefault(); btn.dataset.editing=''; btn.contentEditable='false'; render(); }
+    });
+    btn.addEventListener('blur', () => {
+      if(btn.dataset.editing !== '1') return;
+      btn.dataset.editing = '';
+      btn.contentEditable = 'false';
+      renameCurrentBoard(btn.textContent);
     });
   }
 }
