@@ -721,10 +721,12 @@ body.view-home .board-canvas{min-height:calc(100vh - 47px)}
 .tbl tbody tr.row-drop-below{box-shadow:inset 0 -2px 0 0 var(--lg-cyan)}
 /* ── Keyboard row cursor ── the focused line when navigating with the keyboard.
    Left accent bar + soft row tint so it reads clearly without a heavy outline. */
-.tbl tbody tr.row-kbcursor > td{background:rgba(43,177,230,.12)}
-.tbl tbody tr.row-kbcursor > td:first-child{box-shadow:inset 3px 0 0 0 var(--lg-cyan)}
-body[data-skin="dark-neon"] .tbl tbody tr.row-kbcursor > td{background:rgba(0,245,255,.10)}
-body[data-skin="dark-neon"] .tbl tbody tr.row-kbcursor > td:first-child{box-shadow:inset 3px 0 0 0 #00f5ff}
+/* Keyboard cursor row — clearly highlighted. Accent goes on the first VISIBLE
+   cell (the drag-handle cell is hidden, so :first-child would be invisible). */
+.tbl tbody tr.row-kbcursor > td{background:rgba(43,177,230,.20)}
+.tbl tbody tr.row-kbcursor > td.cell-first-data{box-shadow:inset 4px 0 0 0 var(--lg-cyan)}
+body[data-skin="dark-neon"] .tbl tbody tr.row-kbcursor > td{background:rgba(0,245,255,.18)}
+body[data-skin="dark-neon"] .tbl tbody tr.row-kbcursor > td.cell-first-data{box-shadow:inset 4px 0 0 0 #00f5ff}
 /* ── Keyboard shortcuts cheat-sheet (toggled with ?) ── */
 .kbhelp-bg{position:fixed;inset:0;background:rgba(37,47,124,.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:inherit}
 .kbhelp{background:var(--card,#fff);color:var(--text,#1a1a1a);border-radius:14px;padding:20px 24px 22px;max-width:540px;width:90%;max-height:85vh;overflow:auto;box-shadow:0 24px 70px rgba(37,47,124,.30)}
