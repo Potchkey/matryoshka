@@ -3962,15 +3962,23 @@ function makeRowIntoBoard(tab, rowId){
   const row = arr.find(r => r.id === rowId);
   if(!row) return;
   if(row.boardId && state.boards && state.boards[row.boardId]){ switchBoard(row.boardId); return; }
+  const title = rowTitleText(tab, row) || 'Untitled';
   const id = bid();
   state.boards[id] = {
-    title: rowTitleText(tab, row) || 'Untitled',
+    title,
     parent: { boardId: state.activeBoardId, tab, rowId },
     data: emptyBoardData(),
   };
   row.boardId = id;
+  switchBoard(id); // drill into the (empty) nested board
+  // Seed it with the line item so it carries over instead of opening blank:
+  // a list named after the item, with the item itself as its first row.
+  const listKey = makeUserList(title);
+  state.rows[listKey] = state.rows[listKey] || [];
+  state.rows[listKey].push({ id: rid(), task: title, dateAdded: todayISO(), dateResolved: '' });
+  state.activeTab = 'home';
   save();
-  switchBoard(id);
+  render();
 }
 
 function switchBoard(id){
