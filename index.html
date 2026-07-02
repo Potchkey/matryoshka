@@ -1849,6 +1849,11 @@ async function bootAppForSession(session){
       await loadSharingState();
       const board = Object.values(_sharedWithMe)[0];
       if (board) { switchToSharedBoard(board.boardKey, board.ownerId); return; }
+      // Invite accepted but no shared data came back — almost always missing
+      // Supabase RLS on shared_boards. Tell the user instead of leaving a blank.
+      alert('You joined the shared board, but its contents could not be loaded.\n\nThe board owner needs to finish the one-time Supabase setup for sharing (shared_boards / board_invites tables + row-level-security policies). Once that is in place, reopen this invite link.');
+    } else {
+      alert('This invite link could not be opened. It may have expired, or sharing isn’t fully set up yet on the database. Ask the person who shared it to re-send the link.');
     }
   }
   if (typeof maybeSeedMechanicsListOnce === 'function') maybeSeedMechanicsListOnce();
@@ -3322,6 +3327,46 @@ function subscribeRealtime(){
 // ═══════════════════════════════════════════════════════════════════════════
 // BOARD SHARING — invite-based per-board real-time collaboration
 // Tables: shared_boards (board data per owner), board_invites (access tokens)
+//
+// REQUIRED Supabase setup (run once in the SQL Editor). Sharing silently fails —
+// blank screen for the invitee, nothing added — if these tables/policies are
+// missing, because the owner can't write the shared copy and the invitee can't
+// read it. Tokens are unguessable, so we allow authenticated lookup by token.
+//
+//   create table if not exists shared_boards (
+//     board_key  text not null,
+//     owner_id   uuid not null references auth.users(id) on delete cascade,
+//     data       jsonb not null default '{}',
+//     updated_at timestamptz not null default now(),
+//     primary key (board_key, owner_id)
+//   );
+//   create table if not exists board_invites (
+//     id              uuid primary key default gen_random_uuid(),
+//     board_key       text not null,
+//     owner_id        uuid not null references auth.users(id) on delete cascade,
+//     token           text not null unique,
+//     invitee_user_id uuid references auth.users(id),
+//     invited_at      timestamptz not null default now(),
+//     accepted_at     timestamptz,
+//     label           text
+//   );
+//   alter table shared_boards  enable row level security;
+//   alter table board_invites  enable row level security;
+//   -- owner: full control of their own rows
+//   create policy sb_owner  on shared_boards for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+//   create policy bi_owner  on board_invites for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+//   -- invitee: look up an invite by token, and accept it (claim themselves)
+//   create policy bi_read   on board_invites for select using (true);
+//   create policy bi_accept on board_invites for update using (invitee_user_id is null or invitee_user_id = auth.uid()) with check (invitee_user_id = auth.uid());
+//   -- invitee: read/update the shared board data once they hold an accepted invite
+//   create policy sb_shared_read on shared_boards for select using (
+//     exists (select 1 from board_invites bi where bi.owner_id = shared_boards.owner_id
+//       and bi.invitee_user_id = auth.uid()
+//       and (bi.board_key = shared_boards.board_key or bi.board_key = '__board__')));
+//   create policy sb_shared_edit on shared_boards for update using (
+//     exists (select 1 from board_invites bi where bi.owner_id = shared_boards.owner_id
+//       and bi.invitee_user_id = auth.uid()
+//       and (bi.board_key = shared_boards.board_key or bi.board_key = '__board__')));
 // ═══════════════════════════════════════════════════════════════════════════
 
 let _sharedWithMe = {};    // key = 'boardKey:ownerId' → { boardKey, ownerId, data, updatedAt }
