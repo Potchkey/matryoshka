@@ -5892,11 +5892,14 @@ function openBoardMenu(anchor){
 
   const boards = listBoards();
   boards.forEach(b => {
+    // In Sentinel, only Sentinel is "current" — don't also mark the underlying
+    // active board as checked.
+    const boardActive = b.isActive && !state.viewingMatryoshkaHome;
     const item = document.createElement('div');
-    item.className = 'board-menu-item' + (b.isActive ? ' active' : '');
+    item.className = 'board-menu-item' + (boardActive ? ' active' : '');
     const isPinned = !!(state.matryoshkaHome && state.matryoshkaHome[b.id] && state.matryoshkaHome[b.id].pinned);
     item.innerHTML = `
-      <span class="check">${b.isActive ? '✓' : ''}</span>
+      <span class="check">${boardActive ? '✓' : ''}</span>
       <span class="name">${escapeHtml(b.title)}</span>
       <span class="row-actions">
         <button class="pin" title="${isPinned ? 'Unpin from Sentinel' : 'Pin to Sentinel'}" style="opacity:${isPinned?'1':'.45'}">${isPinned ? '◉' : '◎'}</button>
