@@ -3309,6 +3309,25 @@ function _genToken() {
 function _sbKey(boardKey, ownerId){ return `${boardKey}:${ownerId}`; }
 
 function _extractBoardData(tabKey) {
+  // Row-scoped share key: `__row__:<listKey>:<rowId>` → a one-row mini-list that
+  // carries the parent list's columns/headers so it renders for the collaborator.
+  if (tabKey.startsWith('__row__:')) {
+    const idx = tabKey.indexOf(':', 8);
+    const listKey = tabKey.slice(8, idx);
+    const rowId = tabKey.slice(idx + 1);
+    const arr = (state.rows || {})[listKey] || [];
+    const row = arr.find(r => r.id === rowId);
+    const label = row ? (rowTitleText(listKey, row) || 'Shared task') : 'Shared task';
+    return {
+      rows:        row ? [row] : [],
+      title:       label,
+      headers:     (state.headers     || {})[listKey] || {},
+      colWidths:   (state.colWidths   || {})[listKey] || {},
+      userColumns: (state.userColumns || {})[listKey] || [],
+      colOrder:    (state.colOrder    || {})[listKey] || [],
+      baseListKey: listKey,
+    };
+  }
   return {
     rows:        (state.rows        || {})[tabKey] || [],
     title:       (state.titles      || {})[tabKey] || tabKey,
@@ -3585,7 +3604,12 @@ async function openShareModal(tabKey) {
   const linkArea = document.getElementById('lgShareLinkArea');
   const collabList = document.getElementById('lgShareCollabList');
   if (!modal) return;
-  titleEl.textContent = state.titles[boardKey] || boardKey;
+  // Friendly title: for a row-scoped key, show the task's text; otherwise the list title.
+  if (boardKey.startsWith('__row__:')) {
+    titleEl.textContent = (_extractBoardData(boardKey).title || 'Task') + ' (single task)';
+  } else {
+    titleEl.textContent = state.titles[boardKey] || boardKey;
+  }
   linkArea.textContent = 'Generating link…';
   collabList.innerHTML = '<div class="lg-share-loading">Loading…</div>';
   modal.classList.add('visible');
@@ -4184,7 +4208,11 @@ function save(){
   // pushSharedBoard() no-ops internally if nothing is shared.
   if (!applyingRemote && !state.activeSharedBoard) {
     clearTimeout(window.__ownerSbPushId);
-    window.__ownerSbPushId = setTimeout(() => pushSharedBoard(state.activeTab), 400);
+    window.__ownerSbPushId = setTimeout(() => {
+      pushSharedBoard(state.activeTab);
+      // Also refresh any shared single-task copies that live in the active list.
+      _mySharedKeys.forEach(k => { if (k.startsWith('__row__:' + state.activeTab + ':')) pushSharedBoard(k); });
+    }, 400);
   }
 }
 
@@ -7208,7 +7236,10 @@ function renderRow(tab, row){
   const notesButton = `<button data-act="notes">${hasNotes ? 'Open notes' : 'Add notes'}</button><div class="sep"></div>`;
   const insertButton = `<button data-act="insert-below">+ Insert row below</button><div class="sep"></div>`;
   const boardButton = `<button data-act="makeboard">${row.boardId ? '↳ Open as board' : '🪆 Make into board'}</button><div class="sep"></div>`;
-  const popContent = `${notesButton}${insertButton}${boardButton}${moveButtons}${moveButtons ? '<div class="sep"></div>' : ''}${indentButtons}${archiveSection}<button data-act="duplicate">Duplicate</button><button data-act="delete" class="danger">Delete</button>`;
+  // Share just this one task (reuses the board/list invite system with a row-scoped key).
+  const canShareRow = !!(window.__lgAuth && window.__lgAuth.user) && !tab.startsWith('__sb_');
+  const shareButton = canShareRow ? `<button data-act="share-row">⇧ Share task…</button><div class="sep"></div>` : '';
+  const popContent = `${notesButton}${insertButton}${boardButton}${shareButton}${moveButtons}${moveButtons ? '<div class="sep"></div>' : ''}${indentButtons}${archiveSection}<button data-act="duplicate">Duplicate</button><button data-act="delete" class="danger">Delete</button>`;
   function runRowAction(act){
     if(act === 'delete'){ deleteRow(tab, row.id); }
     else if(act === 'duplicate'){ duplicateRow(tab, row.id); }
@@ -7217,6 +7248,7 @@ function renderRow(tab, row){
     else if(act && act.startsWith('move-')){ moveRowToTab(row.id, tab, act.slice(5)); }
     else if(act === 'notes'){ openNotesDrawer(tab, row); }
     else if(act === 'makeboard'){ makeRowIntoBoard(tab, row.id); }
+    else if(act === 'share-row'){ closeFloatingRowMenu(); openShareModal('__row__:' + tab + ':' + row.id); }
     else if(act === 'insert-below'){ insertRowAfter(tab, row.id); }
     else if(act === 'indent'){
       row.indent = Math.min(8, (row.indent | 0) + 1);
