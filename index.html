@@ -4121,16 +4121,61 @@ function makeRowIntoBoard(tab, rowId){
   render();
 }
 
+// Total row count across all of a board's lists. Uses live state.rows for the
+// active board, otherwise the board's stored snapshot.
+function boardTotalRows(id){
+  const b = state.boards && state.boards[id];
+  if(!b) return 0;
+  const rowsObj = (id === state.activeBoardId) ? (state.rows || {}) : ((b.data && b.data.rows) || {});
+  let n = 0;
+  for(const k in rowsObj){ n += (rowsObj[k] || []).length; }
+  return n;
+}
+// A nested (Russian-doll) sub-board that has no rows left disappears when you
+// leave it: delete the board and unlink its parent row (so the doll goes away
+// and the row is a plain row again). Only prunes parented, non-active, empty
+// boards — top-level boards and the board you're on are never auto-removed.
+function pruneEmptyNestedBoard(id){
+  const b = state.boards && state.boards[id];
+  if(!b || !b.parent) return false;
+  if(id === state.activeBoardId) return false;
+  if(boardTotalRows(id) > 0) return false;
+  const p = b.parent;
+  const parent = state.boards[p.boardId];
+  if(parent){
+    const rows = (p.boardId === state.activeBoardId)
+      ? (state.rows[p.tab] || [])
+      : ((parent.data && parent.data.rows && parent.data.rows[p.tab]) || []);
+    const row = rows.find(r => r.id === p.rowId);
+    if(row) delete row.boardId;
+  }
+  if(state.matryoshkaHome) delete state.matryoshkaHome[id];
+  delete state.boards[id];
+  return true;
+}
+// Navigate up to the Sentinel view, pruning the board we're leaving if it's an
+// empty nested board.
+function enterSentinel(){
+  const leaving = state.activeBoardId;
+  if(leaving && state.boards[leaving]) state.boards[leaving].data = snapshotBoardFields(state);
+  pruneEmptyNestedBoard(leaving);
+  state.viewingMatryoshkaHome = true;
+  save(); render();
+}
+
 function switchBoard(id){
   if(!state.boards || !state.boards[id] || id === state.activeBoardId) return;
   // Snapshot current — guard in case the active board was deleted on another tab via realtime
   // (otherwise this throws on `.data = ...` on undefined).
-  if (state.activeBoardId && state.boards[state.activeBoardId]) {
-    state.boards[state.activeBoardId].data = snapshotBoardFields(state);
+  const leavingId = state.activeBoardId;
+  if (leavingId && state.boards[leavingId]) {
+    state.boards[leavingId].data = snapshotBoardFields(state);
   }
   // Load new
   state.activeBoardId = id;
   restoreBoardFields(state, state.boards[id].data || {});
+  // Leaving an emptied nested sub-board removes it (and unlinks its parent row).
+  if (leavingId && leavingId !== id) pruneEmptyNestedBoard(leavingId);
   // Re-run migrations for the loaded board so any missing defaults fill in
   runStateMigrations(state);
   // Always land on the home canvas when switching workspaces — that's where the
@@ -4690,8 +4735,8 @@ function renderMatryoshkaHomeButton(){
   if(btn.dataset.wired) return;
   btn.dataset.wired = '1';
   btn.addEventListener('click', () => {
-    state.viewingMatryoshkaHome = !state.viewingMatryoshkaHome;
-    save(); render();
+    if(!state.viewingMatryoshkaHome){ enterSentinel(); }
+    else { state.viewingMatryoshkaHome = false; save(); render(); }
   });
 }
 
@@ -5427,7 +5472,7 @@ function renderBoardSwitcher(){
       const sentinel = document.createElement('button');
       sentinel.type = 'button'; sentinel.className = 'crumb';
       sentinel.textContent = 'Sentinel';
-      sentinel.addEventListener('click', e => { e.stopPropagation(); state.viewingMatryoshkaHome = true; save(); render(); });
+      sentinel.addEventListener('click', e => { e.stopPropagation(); enterSentinel(); });
       crumbs.appendChild(sentinel);
       sep();
       // Ancestor boards between Sentinel and the current board (all but the last).
@@ -5488,8 +5533,7 @@ function openBoardMenu(anchor){
   homeItem.innerHTML = `<span class="check">${state.viewingMatryoshkaHome ? '✓' : ''}</span><span class="name">Sentinel</span>`;
   homeItem.addEventListener('click', () => {
     closeBoardMenu();
-    state.viewingMatryoshkaHome = true;
-    save(); render();
+    enterSentinel();
   });
   menu.appendChild(homeItem);
   const homeSep = document.createElement('div');
