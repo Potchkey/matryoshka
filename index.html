@@ -1105,6 +1105,10 @@ body:not(.view-home) .home-mode-toggle{display:none}
 .bcb-pop-item{display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text);border-radius:6px}
 .bcb-pop-item:hover{background:rgba(43,177,230,.12)}
 .bcb-pop-sep{height:1px;background:var(--border,rgba(0,0,0,.08));margin:4px 6px}
+/* Shared indicators — lists (badge) and rows (small ⇧) */
+.shared-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--lg-cyan,#06b6d4);background:rgba(6,182,212,.12);border:1px solid rgba(6,182,212,.35);border-radius:999px;padding:2px 8px;margin-left:8px;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.row-shared-badge{color:var(--lg-cyan,#06b6d4);font-size:12px;line-height:1;padding:0 3px;vertical-align:middle}
+body[data-skin="dark-neon"] .shared-badge{color:#00f5ff;background:rgba(0,245,255,.12);border-color:rgba(0,245,255,.4)}
 .account-menu{position:fixed;z-index:400;background:var(--card,#fff);border:1px solid var(--border-strong,rgba(37,47,124,.16));border-radius:10px;box-shadow:0 12px 30px rgba(37,47,124,.22);padding:8px;min-width:200px;font-family:inherit}
 .account-menu .am-who{font-size:12px;color:var(--muted);padding:6px 8px 8px;line-height:1.5}
 .account-menu .am-who b{color:var(--text);font-size:13px;word-break:break-all}
@@ -3306,6 +3310,10 @@ function subscribeRealtime(){
 
 let _sharedWithMe = {};    // key = 'boardKey:ownerId' → { boardKey, ownerId, data, updatedAt }
 let _mySharedKeys = new Set(); // board keys I own that have at least one accepted invite
+// Whether a given list (or the whole board) is currently shared with anyone.
+function isListShared(listKey){ return _mySharedKeys.has(listKey) || _mySharedKeys.has('__board__'); }
+function isRowShared(listKey, rowId){ return _mySharedKeys.has('__row__:' + listKey + ':' + rowId); }
+const SHARED_BADGE = '<span class="shared-badge" title="Shared with a collaborator">⇧ Shared</span>';
 
 function _genToken() {
   // PostgreSQL encode(...,'base64url') is not valid — generate tokens in JS instead.
@@ -6149,6 +6157,18 @@ function renderSection(){
     const isSharedTab  = tab.startsWith('__sb_');
     shareBtn.style.display = (isArchiveTab || isSharedTab) ? 'none' : '';
   }
+  // "Shared" badge next to the section title when this list (or the board) is shared.
+  const _head = document.querySelector('#sectionCard .section-head');
+  if (_head){
+    const old = _head.querySelector('.shared-badge'); if (old) old.remove();
+    if (isListShared(tab)){
+      const b = document.createElement('span');
+      b.className = 'shared-badge';
+      b.title = 'Shared with a collaborator';
+      b.textContent = '⇧ Shared';
+      titleEl.insertAdjacentElement('afterend', b);
+    }
+  }
   // Apply saved per-list width and height (or fall back to defaults)
   const card = document.getElementById('sectionCard');
   if(card){
@@ -6949,6 +6969,7 @@ function renderHome(host){
     head.innerHTML = `
       <span class="tab-icon ${sch.color}"></span>
       <div class="board-card-title" contenteditable="true" spellcheck="false">${escapeHtml(state.titles[tabKey])}</div>
+      ${isListShared(tabKey) ? SHARED_BADGE : ''}
       <button class="board-card-min" title="${collapsed ? 'Expand list' : 'Minimize list'}">${collapsed ? '▸' : '▾'}</button>
       <div class="board-head-spacer"></div>
       <span class="board-card-count">${rows.length}</span>
@@ -7223,6 +7244,15 @@ function renderRow(tab, row){
   });
   actTd.appendChild(starBtn);
   if (row.priority) tr.classList.add('row-priority');
+  // Shared-task indicator: a small ⇧ when this specific row is shared.
+  if (isRowShared(tab, row.id)){
+    const sh = document.createElement('span');
+    sh.className = 'row-shared-badge';
+    sh.title = 'Shared with a collaborator';
+    sh.textContent = '⇧';
+    actTd.appendChild(sh);
+    tr.classList.add('row-shared');
+  }
   const cutBtn = document.createElement('button');
   cutBtn.className = 'row-cut-btn';
   cutBtn.title = 'Cut row';
