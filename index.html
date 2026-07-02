@@ -458,8 +458,12 @@ body{
 .sync-status.syncing .sync-dot{background:var(--lg-cyan);animation:sync-pulse 1s ease-in-out infinite}
 .sync-status.error .sync-dot{background:var(--lg-pink)}
 @keyframes sync-pulse{0%,100%{opacity:.3}50%{opacity:1}}
-/* Sync status pinned to the top-right corner, out of the header flow. */
-#syncStatus{position:fixed;top:9px;right:14px;z-index:120;background:var(--header-bg,#fff)}
+/* Account + sync status pinned to the top-right corner, out of the header flow. */
+#accountBtn{position:fixed;top:8px;right:14px;z-index:121;width:30px;height:30px;border-radius:50%;border:1px solid var(--border-strong,rgba(37,47,124,.2));background:var(--card,#fff);color:var(--text);cursor:pointer;font-size:14px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;font-family:inherit;box-shadow:0 2px 8px rgba(37,47,124,.12)}
+#accountBtn:hover{border-color:var(--lg-blue)}
+body.lg-gated #accountBtn{display:none}
+body[data-skin="dark-neon"] #accountBtn{background:rgba(6,16,38,.9);color:#f8fafc;border-color:rgba(255,75,216,.3)}
+#syncStatus{position:fixed;top:9px;right:52px;z-index:120;background:var(--header-bg,#fff)}
 body.lg-gated #syncStatus{display:none}
 /* Shortcuts + Skins pinned to the bottom-right corner, above the brand corner. */
 .corner-dock{position:fixed;right:16px;bottom:16px;z-index:95;display:flex;gap:8px;align-items:flex-end}
@@ -1069,7 +1073,7 @@ body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);borde
 .board-canvas.grid .board-card.card-drop-after{box-shadow:inset -4px 0 0 0 var(--lg-cyan)}
 
 /* Home view-mode toggle pill (top-right of the canvas area) */
-.home-mode-toggle{position:fixed;top:10px;right:132px;z-index:115;display:flex;align-items:center;gap:6px;font-family:inherit}
+.home-mode-toggle{position:fixed;top:10px;right:158px;z-index:115;display:flex;align-items:center;gap:6px;font-family:inherit}
 .home-mode-toggle .hmt-toggle{display:flex;background:#fff;border:1px solid var(--border-strong,rgba(37,47,124,.22));border-radius:999px;padding:2px;box-shadow:0 2px 8px rgba(37,47,124,.10)}
 .home-mode-toggle .hmt-toggle button{border:none;background:transparent;padding:5px 12px;border-radius:999px;font-size:11.5px;font-weight:600;color:var(--muted,#6b6f86);cursor:pointer;letter-spacing:.2px;transition:all .12s}
 .home-mode-toggle .hmt-toggle button:hover{color:var(--text,#252f7c)}
@@ -1637,7 +1641,8 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
   </div>
 </div>
 
-<!-- Sync status pinned to the top-right corner -->
+<!-- Account + sync status pinned to the top-right corner -->
+<button id="accountBtn" type="button" title="Account" onclick="toggleAccountMenu(event)">👤</button>
 <button class="sync-status" id="syncStatus" type="button" title="Click to pull the latest from the cloud">
   <span class="sync-dot"></span>
   <span class="sync-label">syncing…</span>
@@ -1648,7 +1653,6 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
 <!-- Single bottom-right dock: map, shortcuts, background color, skins, logo.
      One container so the controls never overlap each other. -->
 <div class="corner-dock" id="cornerDock">
-  <button class="bcb" id="accountBtn" type="button" title="Account" onclick="toggleAccountMenu(event)">👤</button>
   <button id="skeletonBtn" type="button" title="Full Matryoshka map — jump to any board or list" onclick="toggleSkeleton()">🪆 Map</button>
   <button id="shortcutsBtn" class="ct-symbol" type="button" title="Keyboard shortcuts (or press ?)" onclick="_kbToggleHelp()">⌨️</button>
   <button class="bcb" id="bgColorBtn" title="Background &amp; skins">🎨</button>
@@ -1964,8 +1968,10 @@ function toggleAccountMenu(e){
   }
   document.body.appendChild(menu);
   const r = btn.getBoundingClientRect();
-  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
-  menu.style.top = (r.top - menu.offsetHeight - 8) + 'px';
+  menu.style.left = Math.max(8, Math.min(r.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+  // Open below the button when it's near the top of the screen, otherwise above.
+  const above = r.top - menu.offsetHeight - 8;
+  menu.style.top = (above < 8 ? r.bottom + 8 : above) + 'px';
   menu.querySelector('[data-act="signout"]')?.addEventListener('click', () => {
     closeAccountMenu();
     if(window.__lgAuth && window.__lgAuth.signOut) window.__lgAuth.signOut();
