@@ -870,7 +870,7 @@ body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);borde
 .tbl tbody tr .cell-first-data{padding-left:9px !important}
 /* Indent (--ind is set by the row renderer; 0..8). Visually nests sub-rows. */
 .tbl tbody tr .cell-first-data .first-cell-wrap{padding-left:calc(var(--ind, 0) * 22px)}
-.tbl tbody tr .cell-first-data .first-cell-wrap{display:flex;align-items:center;gap:8px;width:100%}
+.tbl tbody tr .cell-first-data .first-cell-wrap{display:flex;align-items:center;gap:3px;width:100%}
 .tbl tbody tr .cell-first-data .first-cell-wrap > .row-check{flex-shrink:0;margin-left:0;margin-right:0}
 .tbl tbody tr .cell-first-data .first-cell-wrap > .cell-edit{flex:0 1 auto;min-width:0;text-align:left}
 .tbl tbody tr .cell-first-data .first-cell-wrap > .row-collapse-arrow{flex:0 0 auto;margin-left:6px}
@@ -970,8 +970,10 @@ body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);borde
 .row-star-btn.is-priority{color:#f5b301}
 /* Keep the actions cell visible on rows flagged priority (like has-notes). */
 .tbl tbody tr td.cell-actions:has(.row-star-btn.is-priority){opacity:1}
-.row-board-doll{font-size:22px;line-height:1;vertical-align:middle;margin-left:2px}
-.row-board-btn{background:transparent;border:none;color:var(--lg-blue,#252f7c);font-size:13px;line-height:1;cursor:pointer;padding:0 3px;border-radius:4px;height:18px;vertical-align:middle;transition:transform .12s,background .12s;margin-left:1px;font-family:inherit}
+.row-board-doll{font-size:20px;line-height:1;vertical-align:middle;margin:0}
+.row-board-btn{background:transparent;border:none;color:var(--lg-blue,#252f7c);font-size:13px;line-height:1;cursor:pointer;padding:0 1px;border-radius:4px;height:18px;vertical-align:middle;transition:transform .12s,background .12s;margin:0;font-family:inherit}
+/* Small breathing room before the task text so the icons don't jam into it. */
+.tbl tbody tr.row-is-board .cell-first-data .first-cell-wrap > .cell-edit{margin-left:5px}
 .row-board-btn:hover{background:rgba(37,47,124,.12);transform:scale(1.15)}
 .row-board-expand{color:var(--muted,#8a8577)}
 .board-preview-row > td{padding:0 0 8px 0;background:transparent}
