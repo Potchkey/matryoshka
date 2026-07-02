@@ -338,23 +338,25 @@ body[data-skin="80s-lite"] .logo{
   -webkit-background-clip:text;
   -webkit-text-fill-color:transparent;
   background-clip:text;
+  filter:drop-shadow(0 0 10px rgba(236,72,153,.55)) drop-shadow(0 0 18px rgba(139,92,246,.35));
 }
 body[data-skin="80s-lite"] .logo .doll{
   -webkit-text-fill-color:initial;
   color:initial;
 }
-/* Board cards — white with colored top accent */
+/* Board cards — white with colored neon-glow border */
 body[data-skin="80s-lite"] .board-card{
   background:#ffffff;
   border:1px solid rgba(0,0,0,.08);
   border-left:none;
+  box-shadow:0 0 0 1px rgba(236,72,153,.10),0 0 24px rgba(236,72,153,.20),0 10px 34px rgba(139,92,246,.14);
 }
-body[data-skin="80s-lite"] .board-card.bc-internal{border:3px solid #f97316;}
-body[data-skin="80s-lite"] .board-card.bc-client  {border:3px solid #06b6d4;}
-body[data-skin="80s-lite"] .board-card.bc-bd      {border:3px solid #8b5cf6;}
-body[data-skin="80s-lite"] .board-card.bc-navy    {border:3px solid #ec4899;}
-/* Section cards */
-body[data-skin="80s-lite"] .section-card{background:#ffffff;border-color:rgba(0,0,0,.08);}
+body[data-skin="80s-lite"] .board-card.bc-internal{border:3px solid #f97316;box-shadow:0 0 0 1px rgba(249,115,22,.30),0 0 18px rgba(249,115,22,.65),0 0 40px rgba(249,115,22,.45),0 0 80px rgba(249,115,22,.28),0 10px 34px rgba(0,0,0,.10);}
+body[data-skin="80s-lite"] .board-card.bc-client  {border:3px solid #06b6d4;box-shadow:0 0 0 1px rgba(6,182,212,.30),0 0 18px rgba(6,182,212,.65),0 0 40px rgba(6,182,212,.45),0 0 80px rgba(6,182,212,.28),0 10px 34px rgba(0,0,0,.10);}
+body[data-skin="80s-lite"] .board-card.bc-bd      {border:3px solid #8b5cf6;box-shadow:0 0 0 1px rgba(139,92,246,.30),0 0 18px rgba(139,92,246,.65),0 0 40px rgba(139,92,246,.45),0 0 80px rgba(139,92,246,.28),0 10px 34px rgba(0,0,0,.10);}
+body[data-skin="80s-lite"] .board-card.bc-navy    {border:3px solid #ec4899;box-shadow:0 0 0 1px rgba(236,72,153,.30),0 0 18px rgba(236,72,153,.65),0 0 40px rgba(236,72,153,.45),0 0 80px rgba(236,72,153,.28),0 10px 34px rgba(0,0,0,.10);}
+/* Section cards — soft neon glow */
+body[data-skin="80s-lite"] .section-card{background:#ffffff;border-color:rgba(0,0,0,.08);box-shadow:0 0 22px rgba(236,72,153,.18),0 0 44px rgba(139,92,246,.12),0 10px 30px rgba(0,0,0,.08);}
 /* Sidebar active item — orange highlight */
 body[data-skin="80s-lite"] .tab-btn.active{
   background:rgba(249,115,22,.10);
@@ -373,8 +375,15 @@ body[data-skin="80s-lite"] #matryoshkaHomeBtn{
 body[data-skin="80s-lite"] #matryoshkaHomeBtn:hover{
   background:rgba(139,92,246,.08);
 }
-/* Matryoshka home cards */
-body[data-skin="80s-lite"] .matryoshka-card{background:#ffffff;border-color:rgba(0,0,0,.08);}
+/* Matryoshka home cards — soft neon glow */
+body[data-skin="80s-lite"] .matryoshka-card{background:#ffffff;border-color:rgba(0,0,0,.08);box-shadow:0 0 20px rgba(236,72,153,.20),0 0 40px rgba(139,92,246,.12),0 8px 26px rgba(0,0,0,.08);}
+body[data-skin="80s-lite"] #matryoshkaHomeBtn{box-shadow:0 0 12px rgba(139,92,246,.30);}
+body[data-skin="80s-lite"] #matryoshkaHomeBtn.active{box-shadow:0 0 16px rgba(139,92,246,.55);}
+/* Active tab pill glows orange */
+body[data-skin="80s-lite"] .tab-btn.active{box-shadow:0 0 14px rgba(249,115,22,.40);}
+/* Stacked/Free toolbar active pill glows */
+body[data-skin="80s-lite"] #boardCanvasToolbar button.active,
+body[data-skin="80s-lite"] .board-canvas-toolbar button.active{box-shadow:0 0 14px rgba(249,115,22,.40);}
 /* Toolbar */
 body[data-skin="80s-lite"] #boardCanvasToolbar button,
 body[data-skin="80s-lite"] .board-canvas-toolbar button{color:#6b7280;border-color:rgba(0,0,0,.12)}
