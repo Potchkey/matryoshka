@@ -478,6 +478,14 @@ body[data-skin="dark-neon"] .sp-item{background:rgba(6,16,38,.9);border-color:rg
 body[data-skin="dark-neon"] .sp-label,body[data-skin="dark-neon"] .sp-head{color:#f8fafc}
 body[data-skin="dark-neon"] .corner-tools-br button{background:rgba(6,16,38,.9);color:#9ba8bf;border-color:rgba(255,75,216,.22)}
 body[data-skin="dark-neon"] .corner-tools-br button:hover{color:#f8fafc;border-color:#ff4bd8}
+/* Shortcuts as a symbol button */
+.corner-tools-br button.ct-symbol{font-size:15px;padding:5px 9px;line-height:1}
+/* Skins stacked directly under the paint palette 🎨 */
+.paint-stack{display:flex;flex-direction:column;align-items:center;gap:6px}
+.skins-btn{font-size:10px;font-weight:600;padding:4px 8px;border-radius:8px;border:1px solid var(--border-strong,rgba(37,47,124,.16));background:var(--card,#fff);color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 2px 8px rgba(37,47,124,.10)}
+.skins-btn:hover{color:var(--text);border-color:var(--lg-blue)}
+body[data-skin="dark-neon"] .skins-btn{background:rgba(6,16,38,.9);color:#9ba8bf;border-color:rgba(255,75,216,.22)}
+body[data-skin="dark-neon"] .skins-btn:hover{color:#f8fafc;border-color:#ff4bd8}
 /* Full Matryoshka map (skeleton) */
 #skeletonBtn{font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:1px solid transparent;cursor:pointer;font-family:inherit;padding:5px 10px;border-radius:7px;white-space:nowrap}
 #skeletonBtn:hover{color:var(--text);background:rgba(37,47,124,.06)}
@@ -800,7 +808,7 @@ body[data-skin="dark-neon"] .tbl tbody tr.row-kbcursor > td.cell-first-data{box-
 .kbhelp kbd{display:inline-block;min-width:16px;text-align:center;padding:2px 7px;margin:0 1px;border-radius:6px;background:rgba(37,47,124,.07);border:1px solid var(--border-strong,rgba(37,47,124,.18));box-shadow:0 1px 0 rgba(37,47,124,.12);font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text,#1a1a1a)}
 .kbhelp .kbhelp-foot{margin-top:14px;font-size:11.5px;color:var(--muted,#6f6b62);text-align:right}
 /* AGGRESSIVE row compaction — force everything tight */
-.tbl{line-height:1.15 !important;border-spacing:0 4px}
+.tbl{line-height:1.1 !important;border-spacing:0 3px}
 /* ── Rows as draggable bars ── each row is a separated, filled bar you can grab
    anywhere to drag (see onRowMouseDown). */
 .tbl tbody tr{cursor:grab}
@@ -825,7 +833,7 @@ body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);borde
 .tbl tbody tr{line-height:1.15 !important;height:auto}
 .tbl tbody tr:not(:last-child){border-bottom:none}
 .tbl tbody tr:hover{background:rgba(37,47,124,.025)}
-.tbl td{padding:4px 9px !important;vertical-align:middle;font-size:14px;color:var(--text);line-height:1.3 !important;height:auto}
+.tbl td{padding:2px 9px !important;vertical-align:middle;font-size:14px;color:var(--text);line-height:1.2 !important;height:auto}
 /* Row indentation — Tab / Shift+Tab inside the task cell adjusts the indent.
    The checkbox sits INSIDE the first data cell (in a flex wrapper) so a single
    padding-left shifts both the checkbox and the text right as one unit. */
@@ -1597,13 +1605,15 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
 <!-- Shortcuts + Skins tucked into the bottom-right corner (above the brand corner) -->
 <div class="corner-tools-br" id="cornerToolsBR">
   <button id="skeletonBtn" type="button" title="Full Matryoshka map — jump to any board or list" onclick="toggleSkeleton()">🪆 Map</button>
-  <button id="shortcutsBtn" type="button" title="Keyboard shortcuts (or press ?)" onclick="_kbToggleHelp()">Shortcuts</button>
-  <button id="skinPickerBtn" type="button" title="Change skin">Skins</button>
+  <button id="shortcutsBtn" class="ct-symbol" type="button" title="Keyboard shortcuts (or press ?)" onclick="_kbToggleHelp()">⌨</button>
 </div>
 
 <!-- Brand corner: background color picker + uploaded logo image, bottom-right -->
 <div class="brand-corner" id="brandCorner">
-  <button class="bcb" id="bgColorBtn" title="Background color">🎨</button>
+  <div class="paint-stack">
+    <button class="bcb" id="bgColorBtn" title="Background color">🎨</button>
+    <button id="skinPickerBtn" class="skins-btn" type="button" title="Change skin">Skins</button>
+  </div>
   <input type="color" id="bgColorInput" hidden>
   <div class="brand-image" id="brandImage"></div>
   <input type="file" id="brandImageInput" accept="image/*" hidden>
@@ -6816,7 +6826,9 @@ function renderHome(host){
 // header and body both derive from this, staying in sync.
 function isEndMetaCol(c){ return c.kind === 'who' || c.kind === 'status'; }
 function endMetaColumns(tab){ return getColumns(tab).filter(isEndMetaCol); }
-function listDisplayColumns(tab){ return getColumns(tab).filter(c => !isEndMetaCol(c)); }
+// Rows show at most 2 text columns (title + one more). Everything else —
+// owner, status/progress, priority — loads as buttons at the end of the row.
+function listDisplayColumns(tab){ return getColumns(tab).filter(c => !isEndMetaCol(c)).slice(0, 2); }
 function listHeadHtml(tab){ return listDisplayColumns(tab).map(col => renderColHeader(tab, col)).join(''); }
 
 function renderRow(tab, row){
