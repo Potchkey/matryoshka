@@ -3790,6 +3790,34 @@ function runStateMigrations(s){
       data: snapshotBoardFields(s),
     };
   }
+  // One-time cleanup: remove stray EMPTY duplicate top-level boards left over
+  // from earlier bugs (e.g. several blank "Firm To-Do Tracker" copies). Keeps
+  // 'main', the active board, and — within each duplicate title group — the one
+  // with the most rows; only deletes copies that are genuinely empty.
+  if(!s._dedupeEmptyV1){
+    const rowsOf = id => { const d = (s.boards[id] && s.boards[id].data) || {}; let n = 0; for(const k in (d.rows || {})) n += (d.rows[k] || []).length; return n; };
+    const topLevel = Object.keys(s.boards).filter(id => !s.boards[id].parent);
+    const byTitle = {};
+    topLevel.forEach(id => {
+      const t = ((s.boards[id].title || '').trim().toLowerCase()) || '(untitled)';
+      (byTitle[t] = byTitle[t] || []).push(id);
+    });
+    Object.values(byTitle).forEach(group => {
+      if(group.length < 2) return;
+      const keep = group.slice().sort((a, b) => (b === 'main' ? 1 : 0) - (a === 'main' ? 1 : 0) || rowsOf(b) - rowsOf(a))[0];
+      group.forEach(id => {
+        if(id === keep || id === 'main' || id === s.activeBoardId) return;
+        if(rowsOf(id) === 0){
+          // Don't orphan any nested boards that point at this one.
+          const hasChildren = Object.keys(s.boards).some(cid => s.boards[cid].parent && s.boards[cid].parent.boardId === id);
+          if(hasChildren) return;
+          if(s.matryoshkaHome) delete s.matryoshkaHome[id];
+          delete s.boards[id];
+        }
+      });
+    });
+    s._dedupeEmptyV1 = true;
+  }
   // Backfill bgColor/brandImage from top-level state to the active board's data
   // (so existing branding moves into the main board and stays there).
   if(s.boards.main && s.boards.main.data){
