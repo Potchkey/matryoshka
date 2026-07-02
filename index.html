@@ -930,9 +930,14 @@ body[data-skin="dark-neon"] .tbl tbody td{background:rgba(255,255,255,.03);borde
 .row-notes-btn{background:transparent;border:none;color:var(--muted);font-size:12px;line-height:1;cursor:pointer;padding:0 2px;border-radius:4px;height:14px;vertical-align:middle;opacity:.7;filter:grayscale(1);transition:opacity .12s,filter .12s}
 .row-notes-btn:hover{opacity:1;filter:none;background:rgba(43,177,230,.10)}
 .row-notes-btn.has-notes{opacity:1;filter:none}
-/* Owner + Status pills relocated to the end of the row. Always visible. */
-.row-endmeta{display:inline-flex;align-items:center;gap:6px;margin-right:6px;vertical-align:middle}
+/* Owner + Status relocated to the end of the row. Always visible, single row. */
+.row-endmeta{display:inline-flex;align-items:center;gap:5px;margin-right:5px;vertical-align:middle}
 .tbl tbody tr td.cell-actions:has(.row-endmeta){opacity:1}
+/* Keep the whole row-end group on one line so it never wraps/crowds. */
+.tbl td.cell-actions{white-space:nowrap}
+/* Clock progress icon */
+.status-clock{background:transparent;border:none;padding:0;margin:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;line-height:1;vertical-align:middle;transition:transform .12s}
+.status-clock:hover{transform:scale(1.15)}
 .row-star-btn{background:transparent;border:none;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;padding:0 2px;border-radius:4px;height:16px;vertical-align:middle;transition:transform .12s,color .12s;font-family:inherit}
 .row-star-btn:hover{transform:scale(1.2);color:#f5b301}
 .row-star-btn.is-priority{color:#f5b301}
@@ -5403,9 +5408,10 @@ function applyBgColor(){
 function renderHeaderLogo(){
   const img = document.querySelector('.logo .logo-img');
   if(!img) return;
-  const mainImg = state.boards && state.boards.main && state.boards.main.data && state.boards.main.data.brandImage;
-  const src = state.brandImage || mainImg || 'assets/logo.png';
-  if(src){ img.src = src; img.style.display = ''; }
+  // The uploaded artwork lives at assets/logo.png. If it ever fails to load the
+  // <img> onerror hides it and the wordmark shows.
+  if(!/assets\/logo\.png/.test(img.getAttribute('src') || '')) img.src = 'assets/logo.png';
+  img.style.display = '';
 }
 
 function renderBrandCorner(){
@@ -7011,7 +7017,7 @@ function renderRow(tab, row){
     meta.className = 'row-endmeta';
     endCols.forEach(col => {
       const v = row[col.key] ?? '';
-      meta.appendChild(col.kind === 'status' ? renderStatus(tab, row, col.key, v)
+      meta.appendChild(col.kind === 'status' ? renderStatusIcon(tab, row, col.key, v)
                                              : renderWho(tab, row, col.key, v));
     });
     actTd.appendChild(meta);
@@ -7606,6 +7612,26 @@ function renderChip(tab, row, key, val, placeholder){
   return div;
 }
 
+// Compact progress indicator for the end of a row: a small clock whose colour
+// reflects status (opens the same picker on click). Replaces the wide text pill
+// so the row-end buttons don't crowd.
+const STATUS_ICON_COLOR = {'Not started':'#9aa0b4','In progress':'#2bb1e6','Blocked':'#e5484d','Done':'#3aa06b'};
+function renderStatusIcon(tab, row, key, val){
+  const cur = val || 'Not started';
+  const btn = document.createElement('button');
+  btn.className = 'status-clock ' + (STATUS_CLASS[cur] || 's-todo');
+  btn.title = 'Progress: ' + cur;
+  btn.style.color = STATUS_ICON_COLOR[cur] || '#9aa0b4';
+  const done = cur === 'Done';
+  btn.innerHTML = done
+    ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>';
+  btn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    openPopover(btn, STATUS_OPTIONS, choice => { row[key] = choice; save(); render(); });
+  });
+  return btn;
+}
 function renderStatus(tab, row, key, val){
   const cur = val || 'Not started';
   const div = document.createElement('span');
