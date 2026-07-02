@@ -1849,9 +1849,14 @@ async function bootAppForSession(session){
       await loadSharingState();
       const board = Object.values(_sharedWithMe)[0];
       if (board) { switchToSharedBoard(board.boardKey, board.ownerId); return; }
-      // Invite accepted but no shared data came back — almost always missing
-      // Supabase RLS on shared_boards. Tell the user instead of leaving a blank.
-      alert('You joined the shared board, but its contents could not be loaded.\n\nThe board owner needs to finish the one-time Supabase setup for sharing (shared_boards / board_invites tables + row-level-security policies). Once that is in place, reopen this invite link.');
+      // Invite accepted but no shared data came back. Show the exact reason so
+      // we can tell an RLS denial from "owner hasn't written any rows yet".
+      const d = window._sharingDiag || {};
+      let why;
+      if (d.sharedBoardsErr) why = 'The database blocked reading the shared board (row-level-security policy): ' + d.sharedBoardsErr;
+      else if (!d.sharedBoardsCount) why = 'No shared board rows exist yet — the owner needs to open the board and click "Share board" again to publish it (and the shared_boards table/policies must be set up).';
+      else why = 'The shared data loaded but did not match this invite.';
+      alert('You joined the shared board, but its contents could not be loaded.\n\n' + why + '\n\n(Diagnostic: ' + JSON.stringify(d) + ')');
     } else {
       alert('This invite link could not be opened. It may have expired, or sharing isn’t fully set up yet on the database. Ask the person who shared it to re-send the link.');
     }
@@ -3419,23 +3424,28 @@ async function loadSharingState() {
   if (!supa || !window.__lgAuth.user) return;
   const userId = window.__lgAuth.user.id;
   try {
-    const { data: myInvites } = await supa.from('board_invites')
-      .select('board_key')
-      .eq('owner_id', userId);
-    _mySharedKeys = new Set((myInvites || []).map(r => r.board_key));
+    const inv = await supa.from('board_invites').select('board_key').eq('owner_id', userId);
+    _mySharedKeys = new Set((inv.data || []).map(r => r.board_key));
 
-    const { data: accessible } = await supa.from('shared_boards')
+    const acc = await supa.from('shared_boards')
       .select('board_key, owner_id, data, updated_at')
       .neq('owner_id', userId);
+    // Diagnostic snapshot so an invitee who can't load a board can report the
+    // exact cause (RLS-denied vs. simply no rows written by the owner yet).
+    window._sharingDiag = {
+      invitesErr: inv.error ? (inv.error.message || inv.error.code) : null,
+      sharedBoardsErr: acc.error ? (acc.error.message || acc.error.code) : null,
+      sharedBoardsCount: (acc.data || []).length,
+    };
     _sharedWithMe = {};
-    for (const b of (accessible || [])) {
+    for (const b of (acc.data || [])) {
       _sharedWithMe[_sbKey(b.board_key, b.owner_id)] = {
         boardKey: b.board_key, ownerId: b.owner_id,
         data: b.data || {}, updatedAt: b.updated_at,
       };
     }
     renderTabs();
-  } catch(e) { console.warn('loadSharingState failed', e); }
+  } catch(e) { window._sharingDiag = { threw: String(e) }; console.warn('loadSharingState failed', e); }
 }
 
 async function pushSharedBoard(boardKey) {
