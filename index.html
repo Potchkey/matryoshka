@@ -492,6 +492,14 @@ body[data-skin="dark-neon"] .zoom-dock button:hover{color:#f8fafc;background:rgb
 .sp-label{flex:1;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sp-list{font-size:11px;color:var(--muted);background:rgba(0,0,0,.05);padding:2px 8px;border-radius:8px;white-space:nowrap;flex-shrink:0}
 .sp-empty{text-align:center;color:var(--muted);font-size:14px;padding:60px 20px;line-height:1.7}
+/* Priority strip pinned at the top of Sentinel */
+.sentinel-priority-strip{padding:10px 12px 0}
+.sp-strip-card{background:var(--card,#fff);border:1px solid var(--border-strong,rgba(37,47,124,.16));border-radius:12px;padding:10px 14px 12px;box-shadow:0 2px 10px rgba(37,47,124,.08);max-height:220px;overflow:auto}
+.sp-strip-head{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px}
+.sp-strip-body{display:flex;flex-wrap:wrap;gap:10px 18px}
+.sp-strip-group{flex:0 1 260px;min-width:200px}
+body[data-skin="dark-neon"] .sp-strip-card{background:rgba(6,16,38,.92);border-color:rgba(255,75,216,.25)}
+body[data-skin="dark-neon"] .sp-strip-head{color:#f8fafc}
 .sp-empty span{font-size:12px}
 body[data-skin="dark-neon"] .sp-item{background:rgba(6,16,38,.9);border-color:rgba(255,75,216,.18)}
 body[data-skin="dark-neon"] .sp-label,body[data-skin="dark-neon"] .sp-head{color:#f8fafc}
@@ -639,7 +647,7 @@ body.view-home .board-canvas{min-height:calc(100vh - 47px)}
 .section-icon.c-bd{background:var(--lg-cyan)}
 .section-icon.c-navy{background:var(--lg-blue)}
 .section-icon.c-white{background:#fff;box-shadow:0 0 0 1.5px var(--lg-blue) inset}
-.section-title{font-size:28px;font-weight:700;color:var(--text);letter-spacing:.1px;flex:0 1 auto;max-width:60%;outline:none;border-radius:4px;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:none}
+.section-title{font-size:18px;font-weight:700;color:var(--text);letter-spacing:.1px;flex:0 1 auto;max-width:60%;outline:none;border-radius:4px;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:none}
 .section-title:hover{background:rgba(37,47,124,.04)}
 .section-title:focus{background:rgba(255,255,255,.9);box-shadow:inset 0 0 0 1px var(--lg-cyan);border-bottom:none}
 .section-actions{margin-left:auto;display:flex;gap:8px;opacity:1}
@@ -1296,7 +1304,7 @@ body.view-dashboard .back-to-dash{display:none}
 .board-card.bc-navy .board-card-controls .ctl:hover{color:var(--lg-blue);background:rgba(37,47,124,.20)}
 .board-card.dragging .board-card-head{cursor:grabbing}
 .board-card-head .tab-icon{width:10px;height:10px;opacity:1;flex-shrink:0}
-.board-card-title{font-size:28px;font-weight:700;color:var(--text);letter-spacing:.1px;flex:0 1 auto;max-width:70%;outline:none;border-radius:4px;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.board-card-title{font-size:18px;font-weight:700;color:var(--text);letter-spacing:.1px;flex:0 1 auto;max-width:70%;outline:none;border-radius:4px;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .board-head-spacer{flex:1;align-self:stretch;cursor:grab;min-width:20px}
 .board-head-spacer:active{cursor:grabbing}
 .board-card-title:hover{background:rgba(37,47,124,.04)}
@@ -6113,9 +6121,10 @@ function renderSection(){
     const zoomStyle = (mode === 'free' && zoom !== 1)
       ? ` style="transform:scale(${zoom});transform-origin:top left;width:${(100/zoom).toFixed(2)}%"`
       : '';
-    homeHost.innerHTML = `<div class="matryoshka-canvas mhome-${mode}" id="matryoshkaHomeCanvas"${zoomStyle}></div>`;
+    homeHost.innerHTML = `<div class="sentinel-priority-strip" id="sentinelPriorityStrip"></div><div class="matryoshka-canvas mhome-${mode}" id="matryoshkaHomeCanvas"${zoomStyle}></div>`;
     const toggle = document.getElementById('homeModeToggle');
     if(toggle) toggle.remove();
+    renderSentinelPriorityStrip(document.getElementById('sentinelPriorityStrip'));
     renderMatryoshkaHome(document.getElementById('matryoshkaHomeCanvas'));
     ensureMatryoshkaHomeToolbar();
     return;
@@ -6538,6 +6547,43 @@ function collectStarredRows(){
   });
   return out;
 }
+// The Priority "board" that lives at the top of Sentinel: every starred item
+// across all boards, grouped by board, click to jump to it.
+function renderSentinelPriorityStrip(host){
+  if(!host) return;
+  const items = collectStarredRows();
+  if(!items.length){ host.innerHTML = ''; host.style.display = 'none'; return; }
+  host.style.display = '';
+  const byBoard = {};
+  items.forEach(it => { (byBoard[it.boardId] = byBoard[it.boardId] || []).push(it); });
+  const card = document.createElement('div');
+  card.className = 'sp-strip-card';
+  const head = document.createElement('div');
+  head.className = 'sp-strip-head';
+  head.innerHTML = `<span class="sp-star">★</span> Priority — ${items.length} starred item${items.length===1?'':'s'}`;
+  card.appendChild(head);
+  const body = document.createElement('div');
+  body.className = 'sp-strip-body';
+  Object.keys(byBoard).forEach(bid => {
+    const g = byBoard[bid];
+    const grp = document.createElement('div');
+    grp.className = 'sp-strip-group';
+    const gh = document.createElement('div');
+    gh.className = 'sp-group-head';
+    gh.textContent = g[0].boardTitle;
+    grp.appendChild(gh);
+    g.forEach(it => {
+      const item = document.createElement('div');
+      item.className = 'sp-item';
+      item.innerHTML = `<span class="sp-star">★</span><span class="sp-label">${escapeHtml(it.label)}</span>`;
+      item.addEventListener('click', () => openBoardOnList(it.boardId, it.listKey));
+      grp.appendChild(item);
+    });
+    body.appendChild(grp);
+  });
+  card.appendChild(body);
+  host.appendChild(card);
+}
 function renderSentinelPriority(canvas){
   canvas.innerHTML = '';
   const items = collectStarredRows();
@@ -6830,10 +6876,7 @@ function ensureMatryoshkaHomeToolbar(){
   const homeOpts = state.matryoshkaHome || {};
   const pinnedIds = Object.keys(state.boards || {}).filter(id => homeOpts[id] && homeOpts[id].pinned);
   const anyCollapsed = pinnedIds.some(id => homeOpts[id] && homeOpts[id].collapsed);
-  const pri = !!state.sentinelPriority;
   bar.innerHTML = `
-    <button data-act="priority" class="hmt-action hmt-priority${pri ? ' active' : ''}" title="Show every starred item across all boards">★ Priority</button>
-    ${pri ? '' : `
     <div class="hmt-toggle">
       <button data-mode="free">Free</button>
       <button data-mode="grid">Grid</button>
@@ -6842,7 +6885,6 @@ function ensureMatryoshkaHomeToolbar(){
       <button data-act="auto-fit" class="hmt-action" title="Tile boards to fit on screen">↔ Auto-fit</button>
     ` : ''}
     <button data-act="toggle-all" class="hmt-action">${anyCollapsed ? '▴ Max all' : '▾ Min all'}</button>
-    `}
   `;
   bar.querySelectorAll('[data-mode]').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
