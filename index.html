@@ -371,7 +371,12 @@ body[data-skin="80s-lite"] #matryoshkaHomeBtn:hover{
   background:rgba(139,92,246,.08);
 }
 /* Matryoshka home cards — soft neon glow */
-body[data-skin="80s-lite"] .matryoshka-card{background:#ffffff;border-color:rgba(0,0,0,.08);box-shadow:0 0 14px rgba(236,72,153,.13),0 0 30px rgba(139,92,246,.08),0 8px 26px rgba(0,0,0,.08);}
+/* Sentinel cards get the same cycling neon border + glow as the board cards. */
+body[data-skin="80s-lite"] .matryoshka-card{background:#ffffff;border:2px solid #ec4899;box-shadow:0 0 0 1px rgba(236,72,153,.18),0 0 13px rgba(236,72,153,.40),0 0 30px rgba(236,72,153,.22),0 8px 26px rgba(0,0,0,.08);}
+body[data-skin="80s-lite"] .matryoshka-card:nth-child(4n+1){border-color:#f97316;box-shadow:0 0 0 1px rgba(249,115,22,.18),0 0 13px rgba(249,115,22,.40),0 0 30px rgba(249,115,22,.22),0 8px 26px rgba(0,0,0,.08)}
+body[data-skin="80s-lite"] .matryoshka-card:nth-child(4n+2){border-color:#06b6d4;box-shadow:0 0 0 1px rgba(6,182,212,.18),0 0 13px rgba(6,182,212,.40),0 0 30px rgba(6,182,212,.22),0 8px 26px rgba(0,0,0,.08)}
+body[data-skin="80s-lite"] .matryoshka-card:nth-child(4n+3){border-color:#8b5cf6;box-shadow:0 0 0 1px rgba(139,92,246,.18),0 0 13px rgba(139,92,246,.40),0 0 30px rgba(139,92,246,.22),0 8px 26px rgba(0,0,0,.08)}
+body[data-skin="80s-lite"] .matryoshka-card:nth-child(4n+0){border-color:#ec4899;box-shadow:0 0 0 1px rgba(236,72,153,.18),0 0 13px rgba(236,72,153,.40),0 0 30px rgba(236,72,153,.22),0 8px 26px rgba(0,0,0,.08)}
 body[data-skin="80s-lite"] #matryoshkaHomeBtn{box-shadow:0 0 12px rgba(139,92,246,.30);}
 body[data-skin="80s-lite"] #matryoshkaHomeBtn.active{box-shadow:0 0 16px rgba(139,92,246,.55);}
 /* Active tab pill glows orange */
