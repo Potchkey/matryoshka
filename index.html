@@ -642,8 +642,16 @@ body.view-home .board-canvas{min-height:calc(100vh - 47px)}
 .section-actions button{font-size:11px;padding:3px 9px;color:var(--muted);border:1px dashed var(--border-strong);background:transparent}
 .section-actions button:hover{color:var(--text);border-style:solid;border-color:var(--lg-blue)}
 /* Table inside section-card flows seamlessly — no card border / shadow / radius */
-.section-card .tbl{border:none !important;border-radius:0 !important;box-shadow:none !important;background:transparent !important;width:100%}
+.section-card .tbl{border:none !important;border-radius:0 !important;box-shadow:none !important;background:transparent !important;width:100% !important;table-layout:fixed;min-width:0}
 .section-card #tableHost{padding:0 12px}
+/* Fit the section table to the card no matter the stored column widths: ignore
+   the per-column px widths (they can be huge from a past resize and push the row
+   off the side, crowding the end buttons), give the end column a compact fixed
+   size, and let the single task column take the rest. */
+.section-card .tbl thead th{width:auto !important}
+.section-card .tbl th.col-handle{width:0 !important;padding:0 !important}
+.section-card .tbl th.col-actions{width:150px !important}
+.section-card #tableHost{overflow-x:hidden}
 
 /* ── TABLE ── */
 .tbl{width:auto;min-width:100%;background:transparent;border:none;border-radius:10px;border-collapse:separate;table-layout:fixed}
@@ -6147,6 +6155,10 @@ function renderSection(){
     const sz = state.sectionSize?.[tab] || {};
     card.style.width  = (sz.w && sz.w > 0) ? (sz.w + 'px') : '600px';
     card.style.height = (sz.h && sz.h > 0) ? (sz.h + 'px') : '';
+    // Honor the lower-left zoom control in the single-list (section) view too.
+    const _z = Math.max(0.4, Math.min(2, +state.boardZoom || 1));
+    if(_z !== 1){ card.style.transform = 'scale(' + _z + ')'; card.style.transformOrigin = 'top left'; }
+    else { card.style.transform = ''; card.style.transformOrigin = ''; }
   }
   // Apply collapse first (operates on natural order), then sort the remainder.
   const visible = visibleRowsAfterCollapse(state.rows[tab]);
