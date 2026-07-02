@@ -566,7 +566,7 @@ button:hover{border-color:var(--lg-blue)}
 
 /* ── LAYOUT ── */
 .layout{display:flex;align-items:flex-start;min-height:calc(100vh - 47px)}
-.sidebar{position:sticky;top:47px;flex-shrink:0;width:92px;background:var(--sidebar-bg);border-right:1px solid var(--border);padding:14px 0;height:calc(100vh - 47px);overflow-y:hidden;z-index:1;display:flex;flex-direction:column}
+.sidebar{position:sticky;top:47px;flex-shrink:0;width:92px;background:transparent;border-right:none;padding:14px 0;height:calc(100vh - 47px);overflow-y:hidden;z-index:1;display:flex;flex-direction:column}
 .sidebar .tab-nav{flex:1;min-height:0;overflow-y:auto}
 .sidebar-foot{margin-top:auto;padding:10px 8px 14px;display:flex;flex-direction:column;gap:8px;align-items:stretch;border-top:1px solid var(--border)}
 .sidebar-add-list{font-size:11px;padding:7px 8px;border-radius:8px;line-height:1.1;white-space:normal;text-align:center}
@@ -1147,7 +1147,7 @@ body.view-dashboard .back-to-dash{display:none}
 .board-resize:hover{opacity:1}
 .board-card.dragging{z-index:50;opacity:.97;box-shadow:0 14px 36px rgba(37,47,124,.20);cursor:grabbing}
 /* Title row matches the sublist subpage's section-head: colored dot + bold title, padded. */
-.board-card-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fafaf7;border-bottom:1px solid rgba(37,47,124,.10);margin-bottom:0;flex-shrink:0;cursor:grab}
+.board-card-head{display:flex;align-items:center;gap:10px;padding:20px 18px;background:#fafaf7;border-bottom:1px solid rgba(37,47,124,.10);margin-bottom:0;flex-shrink:0;cursor:grab}
 .board-card.dragging .board-card-head{cursor:grabbing}
 .board-canvas.grid .board-card-head,.board-canvas.stacked .board-card-head{cursor:grab}
 .board-card-min{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;line-height:1;padding:3px 7px;border-radius:5px;font-family:inherit;flex-shrink:0;opacity:.6;transition:opacity .12s,background .12s,color .12s}
@@ -1256,7 +1256,7 @@ body.view-dashboard .back-to-dash{display:none}
 .board-card.bc-navy .board-card-controls .ctl:hover{color:var(--lg-blue);background:rgba(37,47,124,.20)}
 .board-card.dragging .board-card-head{cursor:grabbing}
 .board-card-head .tab-icon{width:10px;height:10px;opacity:1;flex-shrink:0}
-.board-card-title{font-size:18px;font-weight:600;color:var(--text);letter-spacing:.1px;flex:0 1 auto;max-width:70%;outline:none;border-radius:4px;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.board-card-title{font-size:28px;font-weight:700;color:var(--text);letter-spacing:.1px;flex:0 1 auto;max-width:70%;outline:none;border-radius:4px;padding:1px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .board-head-spacer{flex:1;align-self:stretch;cursor:grab;min-width:20px}
 .board-head-spacer:active{cursor:grabbing}
 .board-card-title:hover{background:rgba(37,47,124,.04)}
@@ -6369,13 +6369,15 @@ function renderMatryoshkaHome(canvas){
   const homeOpts = state.matryoshkaHome || {};
   const mode = canvas.classList.contains('mhome-free') ? 'free' : 'grid';
   const allBoardIds = Object.keys(state.boards || {});
-  const pinnedIds   = allBoardIds.filter(id => homeOpts[id] && homeOpts[id].pinned);
-  const unpinnedIds = allBoardIds.filter(id => !(homeOpts[id] && homeOpts[id].pinned));
+  // Sentinel shows just the first layer down — the top-level boards. Nested
+  // (Russian-doll) sub-boards live inside their parents, not here.
+  const pinnedIds   = allBoardIds.filter(id => !state.boards[id].parent);
+  const unpinnedIds = [];
 
   if(pinnedIds.length === 0){
     const empty = document.createElement('div');
     empty.className = 'matryoshka-empty';
-    empty.innerHTML = `<h2>Your Sentinel view is empty</h2><p>Pin boards here for a cross-board overview. Use the board menu (▾ next to a board name) and choose "Pin to Sentinel".</p>`;
+    empty.innerHTML = `<h2>Your Sentinel view is empty</h2><p>Create a board to see it here.</p>`;
     canvas.appendChild(empty);
   }
 
@@ -6837,7 +6839,7 @@ function isEndMetaCol(c){ return c.kind === 'who' || c.kind === 'status'; }
 function endMetaColumns(tab){ return getColumns(tab).filter(isEndMetaCol); }
 // Rows show at most 2 text columns (title + one more). Everything else —
 // owner, status/progress, priority — loads as buttons at the end of the row.
-function listDisplayColumns(tab){ return getColumns(tab).filter(c => !isEndMetaCol(c)).slice(0, 2); }
+function listDisplayColumns(tab){ return getColumns(tab).filter(c => !isEndMetaCol(c)).slice(0, 1); }
 function listHeadHtml(tab){ return listDisplayColumns(tab).map(col => renderColHeader(tab, col)).join(''); }
 
 function renderRow(tab, row){
@@ -7011,20 +7013,18 @@ function renderRow(tab, row){
     });
     actTd.appendChild(notesBtn);
   }
-  // Owner + Status/Stage render as buttons at the end of the row (no columns).
-  // Same interactive pills as before (open the owner / status pickers on click),
-  // just relocated. Always visible (not tied to the hover-only actions fade).
-  const endCols = endMetaColumns(tab);
-  if (endCols.length){
-    const meta = document.createElement('span');
-    meta.className = 'row-endmeta';
-    endCols.forEach(col => {
-      const v = row[col.key] ?? '';
-      meta.appendChild(col.kind === 'status' ? renderStatusIcon(tab, row, col.key, v)
-                                             : renderWho(tab, row, col.key, v));
-    });
-    actTd.appendChild(meta);
-  }
+  // Every row gets the same four end-of-row buttons: owner, clock (progress),
+  // star, ✕ — regardless of the board's columns. Owner/status bind to the
+  // board's who/status column key when it has one, else to a default key so the
+  // data still lives on the row.
+  const whoCol = getColumns(tab).find(c => c.kind === 'who');
+  const whoKey = whoCol ? whoCol.key : '__owner';
+  const progKey = statusKey || '__status';
+  const meta = document.createElement('span');
+  meta.className = 'row-endmeta';
+  meta.appendChild(renderWho(tab, row, whoKey, row[whoKey] ?? ''));
+  meta.appendChild(renderStatusIcon(tab, row, progKey, row[progKey] ?? ''));
+  actTd.appendChild(meta);
   // Priority star — an end-of-row icon (no dedicated column). Click toggles it;
   // a set star stays gold and keeps the actions cell visible, off is a faint
   // outline that appears on row hover like the other action icons.
