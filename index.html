@@ -332,7 +332,7 @@ body[data-skin="80s-lite"] .logo-word{
   -webkit-text-fill-color:transparent;
   background-clip:text;
 }
-body[data-skin="80s-lite"] .logo-svg{
+body[data-skin="80s-lite"] .logo-img{
   filter:drop-shadow(0 0 6px rgba(236,72,153,.35)) drop-shadow(0 0 11px rgba(139,92,246,.20));
 }
 body[data-skin="80s-lite"] .logo .doll{
@@ -442,7 +442,7 @@ body{
 .brand-icon:hover{background:rgba(0,0,0,.05);transform:translateY(-1px)}
 .brand-icon img{width:100%;height:100%;object-fit:contain}
 .logo{display:inline-flex;align-items:center;gap:8px;font-weight:700;color:var(--lg-blue);white-space:nowrap}
-.logo-svg{height:40px;width:auto;display:block;flex-shrink:0}
+.logo-img{height:40px;width:auto;display:block;flex-shrink:0}
 .logo-word{font-size:17px;letter-spacing:1px;text-transform:uppercase}
 .logo .doll{font-size:16px;margin-right:6px;vertical-align:middle}
 .title{font-size:14px;font-weight:600;color:var(--text);flex:1}
@@ -456,10 +456,13 @@ body{
 /* Sync status pinned to the top-right corner, out of the header flow. */
 #syncStatus{position:fixed;top:9px;right:14px;z-index:120;background:var(--header-bg,#fff)}
 body.lg-gated #syncStatus{display:none}
-/* Shortcuts + Skins at the bottom-left, in the sidebar foot. */
-.corner-tools-bl{display:flex;gap:4px;align-items:center;justify-content:center;margin-top:2px}
-.corner-tools-bl button{font-size:11px;padding:5px 8px;border-radius:7px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap;flex:1}
-.corner-tools-bl button:hover{color:var(--text);background:rgba(0,0,0,.05)}
+/* Shortcuts + Skins pinned to the bottom-right corner, above the brand corner. */
+.corner-tools-br{position:fixed;right:16px;bottom:56px;z-index:95;display:flex;gap:6px;align-items:center}
+body.lg-gated .corner-tools-br{display:none}
+.corner-tools-br button{font-size:11px;font-weight:600;padding:5px 9px;border-radius:8px;border:1px solid var(--border-strong,rgba(37,47,124,.16));background:var(--card,#fff);color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap;box-shadow:0 2px 8px rgba(37,47,124,.10)}
+.corner-tools-br button:hover{color:var(--text);border-color:var(--lg-blue)}
+body[data-skin="dark-neon"] .corner-tools-br button{background:rgba(6,16,38,.9);color:#9ba8bf;border-color:rgba(255,75,216,.22)}
+body[data-skin="dark-neon"] .corner-tools-br button:hover{color:#f8fafc;border-color:#ff4bd8}
 /* Full Matryoshka map (skeleton) */
 #skeletonBtn{font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:1px solid transparent;cursor:pointer;font-family:inherit;padding:5px 10px;border-radius:7px;white-space:nowrap}
 #skeletonBtn:hover{color:var(--text);background:rgba(37,47,124,.06)}
@@ -1546,16 +1549,7 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
 <div class="header-zone" id="headerZone"></div>
 <div class="header">
   <span class="logo">
-    <svg class="logo-svg" viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" fill="none" aria-hidden="true">
-      <g stroke-linejoin="round" stroke-linecap="round">
-        <path d="M50 6 C78 6 86 34 84 60 C83 86 88 118 76 138 C68 146 58 147 50 147 C42 147 32 146 24 138 C12 118 17 86 16 60 C14 34 22 6 50 6 Z" stroke="#e5342b" stroke-width="3.4"/>
-        <path d="M50 42 C69 42 74 61 73 79 C72 97 76 120 66 133 C60 139 55 140 50 140 C45 140 40 139 34 133 C24 120 28 97 27 79 C26 61 31 42 50 42 Z" stroke="#f5a800" stroke-width="3.2"/>
-        <path d="M50 74 C63 74 66 88 65 101 C64 114 67 128 60 135 C56 138 53 138 50 138 C47 138 44 138 40 135 C33 128 36 114 35 101 C34 88 37 74 50 74 Z" stroke="#29a3dd" stroke-width="3"/>
-        <circle cx="45" cy="96" r="2.4" fill="#29a3dd"/>
-        <path d="M53 95.5 q2.3 1.7 4.6 0" stroke="#29a3dd" stroke-width="2.4"/>
-        <path d="M43 104 q7 6 14 0" stroke="#29a3dd" stroke-width="2.4"/>
-      </g>
-    </svg>
+    <img class="logo-img" src="assets/logo.png" alt="" onerror="this.style.display='none'">
     <span class="logo-word">Matryoshka</span>
   </span>
   <button id="boardUpBtn" type="button" class="board-up-btn" style="display:none">↑ Up</button>
@@ -1584,6 +1578,12 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
 
 <div id="dashboardView"></div>
 
+<!-- Shortcuts + Skins tucked into the bottom-right corner (above the brand corner) -->
+<div class="corner-tools-br" id="cornerToolsBR">
+  <button id="shortcutsBtn" type="button" title="Keyboard shortcuts (or press ?)" onclick="_kbToggleHelp()">Shortcuts</button>
+  <button id="skinPickerBtn" type="button" title="Change skin">Skins</button>
+</div>
+
 <!-- Brand corner: background color picker + uploaded logo image, bottom-right -->
 <div class="brand-corner" id="brandCorner">
   <button class="bcb" id="bgColorBtn" title="Background color">🎨</button>
@@ -1599,10 +1599,6 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
     <div class="sidebar-foot">
       <button class="sidebar-share-board" onclick="openBoardShareModal()" title="Invite someone to collaborate on this entire board">⇧ Share board</button>
       <button class="btn-primary sidebar-add-list" onclick="addNewList()">+ New list</button>
-      <div class="corner-tools-bl">
-        <button id="shortcutsBtn" type="button" title="Keyboard shortcuts (or press ?)" onclick="_kbToggleHelp()">Shortcuts</button>
-        <button id="skinPickerBtn" type="button" title="Change skin">Skins</button>
-      </div>
     </div>
   </aside>
 
