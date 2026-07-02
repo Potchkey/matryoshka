@@ -6368,10 +6368,10 @@ function renderMatryoshkaHome(canvas){
   if(state.sentinelPriority){ renderSentinelPriority(canvas); return; }
   const homeOpts = state.matryoshkaHome || {};
   const mode = canvas.classList.contains('mhome-free') ? 'free' : 'grid';
-  const allBoardIds = Object.keys(state.boards || {});
-  // Sentinel shows just the first layer down — the top-level boards. Nested
-  // (Russian-doll) sub-boards live inside their parents, not here.
-  const pinnedIds   = allBoardIds.filter(id => !state.boards[id].parent);
+  // Sentinel shows exactly the first layer down — the same top-level boards as
+  // the board-switcher dropdown (listBoards). Nested Russian-doll sub-boards
+  // live inside their parents and never appear here.
+  const pinnedIds   = listBoards().map(b => b.id);
   const unpinnedIds = [];
 
   if(pinnedIds.length === 0){
