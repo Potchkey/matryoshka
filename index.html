@@ -1270,6 +1270,10 @@ body.view-dashboard .back-to-dash{display:none}
 .board-card:hover .board-card-add{opacity:1}
 .board-card-add:hover{color:var(--text);border-color:var(--lg-blue);background:#fff}
 .board-card .tbl{border:none;border-radius:0;background:transparent}
+/* Free & grid board cards: fit the table to the card and let columns size to
+   content so the row-end buttons (owner · clock · star · ✕) always sit at the
+   visible right edge instead of scrolling off. */
+.board-canvas:not(.stacked) .board-card .tbl{table-layout:auto;width:100% !important;min-width:0}
 .board-card .tbl thead{display:table-header-group;opacity:0;transition:opacity .18s}
 .board-card:hover .tbl thead{opacity:1}
 .board-card .tbl thead th{font-size:10px;padding:5px 9px;background:transparent;color:#1a1a1a;font-weight:700;letter-spacing:.7px;text-transform:uppercase;border-bottom:none}
@@ -7457,7 +7461,10 @@ function sizeColResizeGrips(){
 // 28px = .col-handle, 52px = .col-actions (see CSS).
 function tableTargetWidth(tab){
   if (!SCHEMAS[tab]) return null;
-  return 28 + 52 + getColumns(tab).reduce((s, c) => s + (c.width || 140), 0);
+  // Only the SHOWN columns (max 2) plus room for the row-end button cluster
+  // (owner · clock · star · ✕). Excludes the hidden owner/status/date columns so
+  // the table doesn't stretch past the card and hide the buttons.
+  return 28 + 170 + listDisplayColumns(tab).reduce((s, c) => s + (c.width || 140), 0);
 }
 function fitBoardTableWidths(){
   const stacked = !!document.querySelector('#boardCanvas.stacked');
