@@ -1097,6 +1097,13 @@ body:not(.view-home) .home-mode-toggle{display:none}
 .bcb-pop-item{display:block;width:100%;text-align:left;padding:8px 11px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text);border-radius:6px}
 .bcb-pop-item:hover{background:rgba(43,177,230,.12)}
 .bcb-pop-sep{height:1px;background:var(--border,rgba(0,0,0,.08));margin:4px 6px}
+.account-menu{position:fixed;z-index:400;background:var(--card,#fff);border:1px solid var(--border-strong,rgba(37,47,124,.16));border-radius:10px;box-shadow:0 12px 30px rgba(37,47,124,.22);padding:8px;min-width:200px;font-family:inherit}
+.account-menu .am-who{font-size:12px;color:var(--muted);padding:6px 8px 8px;line-height:1.5}
+.account-menu .am-who b{color:var(--text);font-size:13px;word-break:break-all}
+.account-menu .am-item{display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:transparent;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text)}
+.account-menu .am-item:hover{background:rgba(43,177,230,.12)}
+body[data-skin="dark-neon"] .account-menu{background:#0b1226;border-color:rgba(255,75,216,.25)}
+body[data-skin="dark-neon"] .account-menu .am-who b,body[data-skin="dark-neon"] .account-menu .am-item{color:#f8fafc}
 
 /* ── DASHBOARD (top-level shell) ── */
 body.view-dashboard .header,
@@ -1629,6 +1636,7 @@ document.getElementById('lgSignInBtn').addEventListener('click', () => {
 <!-- Single bottom-right dock: map, shortcuts, background color, skins, logo.
      One container so the controls never overlap each other. -->
 <div class="corner-dock" id="cornerDock">
+  <button class="bcb" id="accountBtn" type="button" title="Account" onclick="toggleAccountMenu(event)">👤</button>
   <button id="skeletonBtn" type="button" title="Full Matryoshka map — jump to any board or list" onclick="toggleSkeleton()">🪆 Map</button>
   <button id="shortcutsBtn" class="ct-symbol" type="button" title="Keyboard shortcuts (or press ?)" onclick="_kbToggleHelp()">⌨️</button>
   <button class="bcb" id="bgColorBtn" title="Background &amp; skins">🎨</button>
@@ -1772,6 +1780,7 @@ async function validateSessionAndReveal(session){
   document.body.classList.remove('lg-gated');
   document.body.classList.add('lg-authed');
   window.__lgAuth.hideLogin();
+  try { renderAccount(); } catch(_){}
   return true;
 }
 
@@ -1893,6 +1902,7 @@ if (supa) {
       cachedAccessToken = null;
       window.__lgAuth.user = null;
       document.body.classList.remove('lg-authed');
+      try { renderAccount(); } catch(_){}
       window.__lgAuth.showLogin();
     }
   });
@@ -1908,6 +1918,55 @@ function setSyncStatus(s){
   syncStatus = s;
   if(s === 'synced') lastSyncedAt = Date.now();
   updateSyncStatusUI();
+}
+// Account button: shows the signed-in user's initial (or 👤 when signed out) and
+// opens a small menu to sign in / sign out. Gives a persistent, visible way to
+// manage accounts — the login overlay only appears when fully signed out.
+function renderAccount(){
+  const btn = document.getElementById('accountBtn');
+  if(!btn) return;
+  const u = window.__lgAuth && window.__lgAuth.user;
+  if(u && u.email){
+    btn.textContent = (u.email[0] || '?').toUpperCase();
+    btn.title = 'Signed in as ' + u.email;
+  } else {
+    btn.textContent = '👤';
+    btn.title = 'Sign in';
+  }
+}
+function closeAccountMenu(){ const m = document.getElementById('accountMenuFloat'); if(m) m.remove(); }
+function toggleAccountMenu(e){
+  if(e) e.stopPropagation();
+  if(document.getElementById('accountMenuFloat')){ closeAccountMenu(); return; }
+  const btn = document.getElementById('accountBtn');
+  const u = window.__lgAuth && window.__lgAuth.user;
+  const menu = document.createElement('div');
+  menu.id = 'accountMenuFloat';
+  menu.className = 'account-menu';
+  if(u && u.email){
+    menu.innerHTML = `<div class="am-who">Signed in as<br><b>${escapeHtml(u.email)}</b></div>
+      <button class="am-item" data-act="signout">Sign out</button>`;
+  } else {
+    menu.innerHTML = `<div class="am-who">Not signed in</div>
+      <button class="am-item" data-act="signin">Sign in with Google</button>`;
+  }
+  document.body.appendChild(menu);
+  const r = btn.getBoundingClientRect();
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+  menu.style.top = (r.top - menu.offsetHeight - 8) + 'px';
+  menu.querySelector('[data-act="signout"]')?.addEventListener('click', () => {
+    closeAccountMenu();
+    if(window.__lgAuth && window.__lgAuth.signOut) window.__lgAuth.signOut();
+  });
+  menu.querySelector('[data-act="signin"]')?.addEventListener('click', () => {
+    closeAccountMenu();
+    if(window.__lgAuth && window.__lgAuth.showLogin) window.__lgAuth.showLogin();
+    const b = document.getElementById('lgSignInBtn'); if(b) b.click();
+  });
+  setTimeout(() => {
+    const close = ev => { if(!ev.target.closest('#accountMenuFloat') && !ev.target.closest('#accountBtn')){ closeAccountMenu(); document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 0);
 }
 function formatSyncAgo(){
   if(!lastSyncedAt) return 'never synced';
