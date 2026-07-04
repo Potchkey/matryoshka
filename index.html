@@ -3434,6 +3434,10 @@ function _extractBoardData(tabKey) {
       colWidths:   (state.colWidths   || {})[listKey] || {},
       userColumns: (state.userColumns || {})[listKey] || [],
       colOrder:    (state.colOrder    || {})[listKey] || [],
+      // Full resolved column set so the collaborator can render the rows even
+      // though they don't have this list's base schema. Without this the shared
+      // board shows up blank (no columns = nothing to display the rows in).
+      columns:     (typeof getColumns === 'function' ? getColumns(listKey) : []).map(c => ({...c})),
       baseListKey: listKey,
     };
   }
@@ -3444,6 +3448,7 @@ function _extractBoardData(tabKey) {
     colWidths:   (state.colWidths   || {})[tabKey] || {},
     userColumns: (state.userColumns || {})[tabKey] || [],
     colOrder:    (state.colOrder    || {})[tabKey] || [],
+    columns:     (typeof getColumns === 'function' ? getColumns(tabKey) : []).map(c => ({...c})),
   };
 }
 
@@ -3698,9 +3703,17 @@ function _injectSharedBoardIntoState(boardKey, ownerId) {
   state.colWidths[tabKey]   = JSON.parse(JSON.stringify(d.colWidths || {}));
   state.userColumns[tabKey] = JSON.parse(JSON.stringify(d.userColumns || []));
   state.colOrder[tabKey]    = JSON.parse(JSON.stringify(d.colOrder || []));
-  // Register a synthetic SCHEMAS entry so getColumns() and renderSection() work
+  // Register a synthetic SCHEMAS entry so getColumns() and renderSection() work.
+  // Prefer the column set the owner sent with the data; fall back to a local base
+  // schema, then to empty. Without real columns the shared list renders blank.
   const baseKey = boardKey;
-  SCHEMAS[tabKey] = SCHEMAS[baseKey] || { label: d.title || boardKey, color: 'bc-client', columns: [] };
+  const cols = (d.columns && d.columns.length) ? d.columns
+             : (SCHEMAS[baseKey] && SCHEMAS[baseKey].columns) || [];
+  SCHEMAS[tabKey] = {
+    label: d.title || boardKey,
+    color: (SCHEMAS[baseKey] && SCHEMAS[baseKey].color) || 'bc-client',
+    columns: JSON.parse(JSON.stringify(cols)),
+  };
 }
 
 function switchToSharedBoard(boardKey, ownerId) {
@@ -6215,10 +6228,11 @@ function renderSection(){
     const zoomStyle = (mode === 'free' && zoom !== 1)
       ? ` style="transform:scale(${zoom});transform-origin:top left;width:${(100/zoom).toFixed(2)}%"`
       : '';
-    homeHost.innerHTML = `<div class="sentinel-priority-strip" id="sentinelPriorityStrip"></div><div class="matryoshka-canvas mhome-${mode}" id="matryoshkaHomeCanvas"${zoomStyle}></div>`;
+    homeHost.innerHTML = `<div class="sentinel-priority-strip" id="sentinelPriorityStrip"></div><div class="sentinel-shared-strip" id="sentinelSharedStrip"></div><div class="matryoshka-canvas mhome-${mode}" id="matryoshkaHomeCanvas"${zoomStyle}></div>`;
     const toggle = document.getElementById('homeModeToggle');
     if(toggle) toggle.remove();
     renderSentinelPriorityStrip(document.getElementById('sentinelPriorityStrip'));
+    renderSentinelSharedStrip(document.getElementById('sentinelSharedStrip'));
     renderMatryoshkaHome(document.getElementById('matryoshkaHomeCanvas'));
     ensureMatryoshkaHomeToolbar();
     return;
@@ -6674,6 +6688,33 @@ function renderSentinelPriorityStrip(host){
       grp.appendChild(item);
     });
     body.appendChild(grp);
+  });
+  card.appendChild(body);
+  host.appendChild(card);
+}
+// "Shared with me" strip at the top of Sentinel — lists boards/lists other people
+// have shared, so an invitee can find them without digging into a board's sidebar.
+function renderSentinelSharedStrip(host){
+  if(!host) return;
+  const entries = Object.values(_sharedWithMe || {});
+  if(!entries.length){ host.innerHTML = ''; host.style.display = 'none'; return; }
+  host.style.display = '';
+  const card = document.createElement('div');
+  card.className = 'sp-strip-card';
+  const head = document.createElement('div');
+  head.className = 'sp-strip-head';
+  head.innerHTML = `⇧ Shared with me — ${entries.length}`;
+  card.appendChild(head);
+  const body = document.createElement('div');
+  body.className = 'sp-strip-body';
+  entries.forEach(b => {
+    const item = document.createElement('div');
+    item.className = 'sp-item';
+    const label = (b.data && b.data.title) || b.boardKey;
+    const n = (b.data && Array.isArray(b.data.rows)) ? b.data.rows.length : 0;
+    item.innerHTML = `<span class="sp-label">${escapeHtml(label)}</span><span class="sp-list">${n} item${n===1?'':'s'}</span>`;
+    item.addEventListener('click', () => switchToSharedBoard(b.boardKey, b.ownerId));
+    body.appendChild(item);
   });
   card.appendChild(body);
   host.appendChild(card);
