@@ -1127,6 +1127,7 @@ body[data-skin="dark-neon"] .shared-badge{color:#00f5ff;background:rgba(0,245,25
 .account-menu{position:fixed;z-index:400;background:var(--card,#fff);border:1px solid var(--border-strong,rgba(37,47,124,.16));border-radius:10px;box-shadow:0 12px 30px rgba(37,47,124,.22);padding:8px;min-width:200px;font-family:inherit}
 .account-menu .am-who{font-size:12px;color:var(--muted);padding:6px 8px 8px;line-height:1.5}
 .account-menu .am-who b{color:var(--text);font-size:13px;word-break:break-all}
+.account-menu .am-diag{font-size:11px;color:var(--muted);padding:4px 8px 8px;line-height:1.55;border-top:1px solid var(--border,rgba(0,0,0,.08));margin-top:4px;word-break:break-word}
 .account-menu .am-item{display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:transparent;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text)}
 .account-menu .am-item:hover{background:rgba(43,177,230,.12)}
 body[data-skin="dark-neon"] .account-menu{background:#0b1226;border-color:rgba(255,75,216,.25)}
@@ -1997,8 +1998,17 @@ function toggleAccountMenu(e){
   menu.id = 'accountMenuFloat';
   menu.className = 'account-menu';
   if(u && u.email){
-    menu.innerHTML = `<div class="am-who">Signed in as<br><b>${escapeHtml(u.email)}</b></div>
-      <button class="am-item" data-act="signout">Sign out</button>`;
+    // Sharing diagnostic — visible so it can be read/screenshotted without the console.
+    const d = window._sharingDiag || {};
+    const sharedCount = Object.keys(_sharedWithMe || {}).length;
+    const diag = `<div class="am-diag">acct id: ${escapeHtml((u.id||'').slice(0,8))}…<br>`
+      + `shared boards visible: ${sharedCount}`
+      + (d.sharedBoardsErr ? `<br>read error: ${escapeHtml(String(d.sharedBoardsErr))}` : '')
+      + (d.invitesErr ? `<br>invites error: ${escapeHtml(String(d.invitesErr))}` : '')
+      + `</div>`;
+    menu.innerHTML = `<div class="am-who">Signed in as<br><b>${escapeHtml(u.email)}</b></div>`
+      + diag
+      + `<button class="am-item" data-act="signout">Sign out</button>`;
   } else {
     menu.innerHTML = `<div class="am-who">Not signed in</div>
       <button class="am-item" data-act="signin">Sign in with Google</button>`;
