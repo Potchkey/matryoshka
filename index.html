@@ -1850,9 +1850,17 @@ async function bootAppForSession(session){
   if (inviteToken) {
     const redeemed = await redeemInviteToken(inviteToken);
     if (redeemed) {
-      // Reload sharing state so _sharedWithMe is populated, then navigate
+      // Reload sharing state so _sharedWithMe is populated, then navigate.
       await loadSharingState();
-      const board = Object.values(_sharedWithMe)[0];
+      // Land on a real (non-empty) shared board, not just the first row — the
+      // owner may have stale empty/artifact rows that would look like a blank
+      // "sample" board. Prefer the most-populated, then most-recently-updated.
+      const shared = Object.values(_sharedWithMe);
+      const rowCount = b => (b && b.data && Array.isArray(b.data.rows)) ? b.data.rows.length : 0;
+      const board = shared.slice().sort((a, b) =>
+        (rowCount(b) - rowCount(a)) ||
+        (new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+      )[0];
       if (board) { switchToSharedBoard(board.boardKey, board.ownerId); return; }
       // Invite accepted but no shared data came back. Show the exact reason so
       // we can tell an RLS denial from "owner hasn't written any rows yet".
@@ -3507,9 +3515,13 @@ async function createBoardInvite() {
     }
     _mySharedKeys.add('__board__');
     if (pushErr) { console.warn('createBoardInvite: publish blocked', pushErr); return { error: pushErr }; }
-    // Create (or reuse) the board-level invite token
+    // Reuse an UNCLAIMED board-level token if one exists; otherwise mint a fresh
+    // one. Each token can only be accepted by a single person (RLS), so once a
+    // link has been used we must hand out a new link for the next collaborator —
+    // reusing an already-accepted token silently gives the next person no access.
     const { data: existing } = await supa.from('board_invites')
-      .select('token').eq('board_key', '__board__').eq('owner_id', userId).limit(1).single();
+      .select('token').eq('board_key', '__board__').eq('owner_id', userId)
+      .is('accepted_at', null).limit(1).maybeSingle();
     if (existing?.token) return `${location.origin}${location.pathname}?invite=${existing.token}`;
     const token = _genToken();
     const { data, error } = await supa.from('board_invites')
