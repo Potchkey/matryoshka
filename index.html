@@ -461,6 +461,7 @@ body{
 /* Account + sync status pinned to the top-right corner, out of the header flow. */
 #accountBtn{position:fixed;top:8px;right:14px;z-index:121;width:30px;height:30px;border-radius:50%;border:1px solid var(--border-strong,rgba(37,47,124,.2));background:var(--card,#fff);color:var(--text);cursor:pointer;font-size:14px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;font-family:inherit;box-shadow:0 2px 8px rgba(37,47,124,.12)}
 #accountBtn:hover{border-color:var(--lg-blue)}
+#accountBtn.acct-signin{width:auto;border-radius:999px;padding:0 14px;font-size:12px;font-weight:700;color:var(--lg-blue,#252f7c)}
 body.lg-gated #accountBtn{display:none}
 body[data-skin="dark-neon"] #accountBtn{background:rgba(6,16,38,.9);color:#f8fafc;border-color:rgba(255,75,216,.3)}
 #syncStatus{position:fixed;top:9px;right:52px;z-index:120;background:var(--header-bg,#fff)}
@@ -1932,6 +1933,7 @@ if (supa) {
       bootAppForSession(session);
     } else if (event === 'INITIAL_SESSION' && !session) {
       // Confirmed unauthenticated — show login if not already up
+      try { renderAccount(); } catch(_){}
       window.__lgAuth.showLogin();
     } else if (event === 'SIGNED_OUT') {
       appBooted = false;
@@ -1965,9 +1967,12 @@ function renderAccount(){
   if(u && u.email){
     btn.textContent = (u.email[0] || '?').toUpperCase();
     btn.title = 'Signed in as ' + u.email;
+    btn.classList.remove('acct-signin');
   } else {
-    btn.textContent = '👤';
-    btn.title = 'Sign in';
+    // Signed out: show a clear "Sign in" pill rather than a bare icon.
+    btn.textContent = 'Sign in';
+    btn.title = 'Sign in with Google';
+    btn.classList.add('acct-signin');
   }
 }
 function closeAccountMenu(){ const m = document.getElementById('accountMenuFloat'); if(m) m.remove(); }
