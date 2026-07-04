@@ -1625,6 +1625,10 @@ window.__lgAuth = {
 };
 document.getElementById('lgSignInBtn').addEventListener('click', () => {
   const c = window.__lgAuth.client;
+  // Persist any pending invite so it survives the OAuth round-trip (localStorage,
+  // not sessionStorage — the redirect can land in a fresh tab/session).
+  const pend = new URLSearchParams(location.search).get('invite');
+  if (pend) localStorage.setItem('matryoshka_pending_invite', pend);
   if (c) c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
 });
 </script>
@@ -1789,7 +1793,7 @@ let supa = null;
 // already be the clean post-OAuth URL with no ?invite= param.
 (function _saveInviteToken(){
   const token = new URLSearchParams(location.search).get('invite');
-  if (token) sessionStorage.setItem('matryoshka_pending_invite', token);
+  if (token) localStorage.setItem('matryoshka_pending_invite', token);
 })();
 
 // Auth gate: returns true if we should proceed with the rest of the app.
@@ -1838,10 +1842,10 @@ async function bootAppForSession(session){
     // Clean the URL immediately regardless of redemption outcome
     const clean = location.pathname + (location.search.replace(/[?&]invite=[^&]*/,'').replace(/^&/,'?') || '');
     history.replaceState(null, '', clean);
-    sessionStorage.removeItem('matryoshka_pending_invite');
+    localStorage.removeItem('matryoshka_pending_invite');
   } else {
-    inviteToken = sessionStorage.getItem('matryoshka_pending_invite') || null;
-    if (inviteToken) sessionStorage.removeItem('matryoshka_pending_invite');
+    inviteToken = localStorage.getItem('matryoshka_pending_invite') || null;
+    if (inviteToken) localStorage.removeItem('matryoshka_pending_invite');
   }
   if (inviteToken) {
     const redeemed = await redeemInviteToken(inviteToken);
@@ -3488,16 +3492,21 @@ async function createBoardInvite() {
   }
   if (!userId || !supa) return null;
   try {
-    // Push every current list to shared_boards so collaborators can read them
+    // Push every current list to shared_boards so collaborators can read them.
+    // Capture the first write error — if the DB blocks this (RLS), the invitee
+    // would get a blank board, so surface it to the owner instead of failing silently.
+    let pushErr = null;
     for (const key of (state.boardOrder || [])) {
-      await supa.from('shared_boards').upsert({
+      const { error: upErr } = await supa.from('shared_boards').upsert({
         board_key: key, owner_id: userId,
         data: _extractBoardData(key),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'board_key,owner_id' });
+      if (upErr && !pushErr) pushErr = upErr;
       _mySharedKeys.add(key);
     }
     _mySharedKeys.add('__board__');
+    if (pushErr) { console.warn('createBoardInvite: publish blocked', pushErr); return { error: pushErr }; }
     // Create (or reuse) the board-level invite token
     const { data: existing } = await supa.from('board_invites')
       .select('token').eq('board_key', '__board__').eq('owner_id', userId).limit(1).single();
