@@ -6253,6 +6253,22 @@ function renderTabs(){
     return;
   }
 
+  // Single shared list view — show all per-list shared entries in sidebar
+  if (state.activeSharedBoard && !state.activeSharedBoardFull) {
+    if (sidebarTitle) sidebarTitle.textContent = 'Shared with me';
+    const perListEntries = Object.values(_sharedWithMe).filter(b => b.boardInternalId === undefined);
+    perListEntries.forEach(board => {
+      const tabKey = '__sb_' + board.boardKey + '_' + board.ownerId.slice(0, 8);
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn tab-shared' + (state.activeTab === tabKey ? ' active' : '');
+      btn.dataset.tab = tabKey;
+      btn.innerHTML = `<span class="tab-icon-wrap"><span class="tab-icon"></span></span><span class="tab-label">${escapeHtml(board.boardKey)}</span>`;
+      btn.addEventListener('click', () => switchToSharedBoard(board.boardKey, board.ownerId));
+      nav.appendChild(btn);
+    });
+    return;
+  }
+
   // Board level: existing list tabs
   const homeBtn = document.createElement('button');
   homeBtn.className = 'tab-btn' + (state.activeTab==='home' ? ' active' : '');
