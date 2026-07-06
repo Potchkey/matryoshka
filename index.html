@@ -3497,16 +3497,18 @@ async function loadSharingState() {
       for (const inv of acceptedInvites) {
         if (!inv.list_key || inv.list_key === '__board__') {
           // Board-level invite — fetch only this board's lists from shared_lists
-          _sharedBoardsMeta[inv.owner_id] = { title: inv.board_id || inv.owner_id.slice(0, 8) };
+          const boardInternalId = inv.board_internal_id || null;
+          _sharedBoardsMeta[inv.owner_id] = { title: inv.board_id || inv.owner_id.slice(0, 8), boardInternalId };
           let sbQuery = supa.from('shared_lists')
             .select('list_key, owner_id, data, updated_at')
             .eq('owner_id', inv.owner_id);
-          if (inv.board_internal_id) sbQuery = sbQuery.eq('board_id', inv.board_internal_id);
+          if (boardInternalId) sbQuery = sbQuery.eq('board_id', boardInternalId);
           const { data: rows } = await sbQuery;
           for (const b of (rows || [])) {
             _sharedWithMe[_sbKey(b.list_key, b.owner_id)] = {
               boardKey: b.list_key, ownerId: b.owner_id,
               data: b.data || {}, updatedAt: b.updated_at,
+              boardInternalId,
             };
           }
         } else {
@@ -3783,7 +3785,11 @@ function switchToSharedBoard(boardKey, ownerId) {
 }
 
 function switchToSharedBoardFull(ownerId) {
-  const lists = Object.values(_sharedWithMe).filter(b => b.ownerId === ownerId);
+  const meta = _sharedBoardsMeta[ownerId];
+  const boardInternalId = meta?.boardInternalId;
+  const lists = Object.values(_sharedWithMe).filter(b =>
+    b.ownerId === ownerId && (!boardInternalId || b.boardInternalId === boardInternalId)
+  );
   if (!lists.length) return;
   for (const list of lists) _injectSharedBoardIntoState(list.boardKey, list.ownerId);
   const first = lists[0];
@@ -6223,7 +6229,10 @@ function renderTabs(){
   // Shared board full view — show only that owner's lists as tabs
   if (state.activeSharedBoardFull) {
     const ownerId = state.activeSharedBoardFull;
-    const lists = Object.values(_sharedWithMe).filter(b => b.ownerId === ownerId);
+    const boardInternalId = _sharedBoardsMeta[ownerId]?.boardInternalId;
+    const lists = Object.values(_sharedWithMe).filter(b =>
+      b.ownerId === ownerId && (!boardInternalId || b.boardInternalId === boardInternalId)
+    );
     lists.forEach(board => {
       const tabKey = '__sb_' + board.boardKey + '_' + board.ownerId.slice(0, 8);
       const btn = document.createElement('button');
