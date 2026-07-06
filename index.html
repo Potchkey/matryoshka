@@ -3402,6 +3402,7 @@ function subscribeRealtime(){
 // ═══════════════════════════════════════════════════════════════════════════
 
 let _sharedWithMe = {};    // key = 'boardKey:ownerId' → { boardKey, ownerId, data, updatedAt }
+let _sharedBoardsMeta = {}; // key = ownerId → { title } (from board_invites.board_id)
 let _mySharedKeys = new Set(); // board keys I own that have at least one accepted invite
 // Whether a given list (or the whole board) is currently shared with anyone.
 function isListShared(listKey){ return _mySharedKeys.has(listKey) || _mySharedKeys.has('__board__'); }
@@ -3474,10 +3475,12 @@ async function loadSharingState() {
     };
 
     _sharedWithMe = {};
+    _sharedBoardsMeta = {};
     if (acceptedInvites && acceptedInvites.length) {
       for (const inv of acceptedInvites) {
         if (!inv.list_key || inv.list_key === '__board__') {
           // Board-level invite — fetch all lists this owner has pushed to shared_boards
+          _sharedBoardsMeta[inv.owner_id] = { title: inv.board_id || inv.owner_id.slice(0, 8) };
           const { data: rows } = await supa.from('shared_boards')
             .select('board_key, owner_id, data, updated_at')
             .eq('owner_id', inv.owner_id);
@@ -3755,6 +3758,20 @@ function switchToSharedBoard(boardKey, ownerId) {
   _injectSharedBoardIntoState(boardKey, ownerId);
   state.activeSharedBoard = { boardKey, ownerId, tabKey };
   state.activeTab = tabKey;
+  save();
+  render();
+}
+
+function switchToSharedBoardFull(ownerId) {
+  const lists = Object.values(_sharedWithMe).filter(b => b.ownerId === ownerId);
+  if (!lists.length) return;
+  for (const list of lists) _injectSharedBoardIntoState(list.boardKey, list.ownerId);
+  const first = lists[0];
+  const firstTabKey = '__sb_' + first.boardKey + '_' + first.ownerId.slice(0, 8);
+  state.activeSharedBoardFull = ownerId;
+  state.activeSharedBoard = { boardKey: first.boardKey, ownerId, tabKey: firstTabKey };
+  state.activeTab = firstTabKey;
+  state.viewingMatryoshkaHome = false;
   save();
   render();
 }
@@ -4544,6 +4561,8 @@ function enterSentinel(){
   if(leaving && state.boards[leaving]) state.boards[leaving].data = snapshotBoardFields(state);
   pruneEmptyNestedBoard(leaving);
   state.viewingMatryoshkaHome = true;
+  state.activeSharedBoardFull = null;
+  state.activeSharedBoard = null;
   save(); render();
 }
 
@@ -4632,7 +4651,10 @@ function toggleSkeleton(){
 }
 
 function switchBoard(id){
-  if(!state.boards || !state.boards[id] || id === state.activeBoardId) return;
+  if(!state.boards || !state.boards[id]) return;
+  state.activeSharedBoardFull = null;
+  state.activeSharedBoard = null;
+  if(id === state.activeBoardId) return;
   // Snapshot current — guard in case the active board was deleted on another tab via realtime
   // (otherwise this throws on `.data = ...` on undefined).
   const leavingId = state.activeBoardId;
@@ -5949,7 +5971,9 @@ function renderBoardSwitcher(){
     upBtn.title = hasParent ? ('Back up to ' + (boardDisplayTitle(parentId) || 'the layer above')) : '';
     upBtn.onclick = hasParent ? (e => { e.stopPropagation(); switchBoard(parentId); }) : null;
   }
-  btn.textContent = state.viewingMatryoshkaHome ? 'Sentinel' : (boardDisplayTitle(state.activeBoardId) || 'Untitled board');
+  btn.textContent = state.viewingMatryoshkaHome ? 'Sentinel'
+    : state.activeSharedBoardFull ? ((_sharedBoardsMeta[state.activeSharedBoardFull]?.title) || 'Shared board')
+    : (boardDisplayTitle(state.activeBoardId) || 'Untitled board');
   // Breadcrumb: Sentinel › [ancestor boards] › (current board is the switcher itself).
   if(crumbs){
     crumbs.innerHTML = '';
@@ -6078,6 +6102,27 @@ function openBoardMenu(anchor){
     });
     menu.appendChild(item);
   });
+  // Shared with me section
+  const sharedOwners = Object.keys(_sharedBoardsMeta);
+  if (sharedOwners.length) {
+    const sharedSep = document.createElement('div');
+    sharedSep.className = 'board-menu-sep';
+    menu.appendChild(sharedSep);
+    const sharedLabel = document.createElement('div');
+    sharedLabel.style.cssText = 'padding:4px 10px 2px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em';
+    sharedLabel.textContent = 'Shared with me';
+    menu.appendChild(sharedLabel);
+    sharedOwners.forEach(ownerId => {
+      const meta = _sharedBoardsMeta[ownerId];
+      const isActive = state.activeSharedBoardFull === ownerId;
+      const item = document.createElement('div');
+      item.className = 'board-menu-item' + (isActive ? ' active' : '');
+      item.innerHTML = `<span class="check">${isActive ? '✓' : ''}</span><span class="name">${escapeHtml(meta.title)}</span>`;
+      item.addEventListener('click', () => { closeBoardMenu(); switchToSharedBoardFull(ownerId); });
+      menu.appendChild(item);
+    });
+  }
+
   // Separator + add new
   const sep = document.createElement('div');
   sep.className = 'board-menu-sep';
@@ -6148,6 +6193,28 @@ function renderTabs(){
     return;
   }
 
+  // Shared board full view — show only that owner's lists as tabs
+  if (state.activeSharedBoardFull) {
+    const ownerId = state.activeSharedBoardFull;
+    const lists = Object.values(_sharedWithMe).filter(b => b.ownerId === ownerId);
+    lists.forEach(board => {
+      const tabKey = '__sb_' + board.boardKey + '_' + board.ownerId.slice(0, 8);
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn tab-shared' + (state.activeTab === tabKey ? ' active' : '');
+      btn.dataset.tab = tabKey;
+      const label = board.data?.title || board.boardKey;
+      btn.innerHTML = `<span class="tab-icon-wrap"><span class="tab-icon"></span></span><span class="tab-label">${escapeHtml(label)}</span>`;
+      btn.addEventListener('click', () => {
+        _injectSharedBoardIntoState(board.boardKey, board.ownerId);
+        state.activeSharedBoard = { boardKey: board.boardKey, ownerId, tabKey };
+        state.activeTab = tabKey;
+        save(); render();
+      });
+      nav.appendChild(btn);
+    });
+    return;
+  }
+
   // Board level: existing list tabs
   const homeBtn = document.createElement('button');
   homeBtn.className = 'tab-btn' + (state.activeTab==='home' ? ' active' : '');
@@ -6170,8 +6237,8 @@ function renderTabs(){
     if(archKey) nav.appendChild(buildTabBtn(archKey, true));
   });
 
-  // SHARED WITH ME section
-  const sharedEntries = Object.values(_sharedWithMe);
+  // SHARED WITH ME section — individual lists for per-list invites only
+  const sharedEntries = Object.values(_sharedWithMe).filter(b => !_sharedBoardsMeta[b.ownerId]);
   if (sharedEntries.length) {
     const sharedSep = document.createElement('div');
     sharedSep.className = 'sidebar-group sidebar-shared';
