@@ -3512,18 +3512,17 @@ async function loadSharingState() {
             };
           }
         } else {
-          // Per-list invite — fetch just that one shared_lists row
+          // Per-list invite — fetch the shared_lists row if it exists, but always
+          // register the entry so it appears in the sidebar regardless
           const { data: b } = await supa.from('shared_lists')
             .select('list_key, owner_id, data, updated_at')
             .eq('list_key', inv.list_key)
             .eq('owner_id', inv.owner_id)
-            .single();
-          if (b) {
-            _sharedWithMe[_sbKey(b.list_key, b.owner_id)] = {
-              boardKey: b.list_key, ownerId: b.owner_id,
-              data: b.data || {}, updatedAt: b.updated_at,
-            };
-          }
+            .maybeSingle();
+          _sharedWithMe[_sbKey(inv.list_key, inv.owner_id)] = {
+            boardKey: inv.list_key, ownerId: inv.owner_id,
+            data: (b && b.data) || {}, updatedAt: b?.updated_at || null,
+          };
         }
       }
     }
