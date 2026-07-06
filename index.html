@@ -5097,6 +5097,13 @@ function render(){
   }
   // Refresh the bottom dock every render so chips appear/disappear as boards are minimized.
   try { renderBoardDock(); } catch(_) {}
+  // If the persisted active tab is a shared board tab whose SCHEMAS entry hasn't been
+  // injected yet (loading race on boot), fall back to home rather than crashing.
+  if (state.activeTab && state.activeTab.startsWith('__sb_') && !SCHEMAS[state.activeTab]) {
+    state.activeTab = 'home';
+    state.activeSharedBoardFull = null;
+    state.activeSharedBoard = null;
+  }
   applyRoute();
   // Refresh selection visuals + bar after the DOM is rebuilt.
   if (_selection.ids.size > 0){
