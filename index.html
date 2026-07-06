@@ -6229,7 +6229,7 @@ function renderTabs(){
       const btn = document.createElement('button');
       btn.className = 'tab-btn tab-shared' + (state.activeTab === tabKey ? ' active' : '');
       btn.dataset.tab = tabKey;
-      const label = board.data?.title || board.boardKey;
+      const label = board.boardKey;
       btn.innerHTML = `<span class="tab-icon-wrap"><span class="tab-icon"></span></span><span class="tab-label">${escapeHtml(label)}</span>`;
       btn.addEventListener('click', () => {
         _injectSharedBoardIntoState(board.boardKey, board.ownerId);
@@ -6278,7 +6278,7 @@ function renderTabs(){
       const btn = document.createElement('button');
       btn.className = 'tab-btn tab-shared' + (state.activeTab === tabKey ? ' active' : '');
       btn.dataset.tab = tabKey;
-      const label = board.data?.title || board.boardKey;
+      const label = board.boardKey;
       btn.innerHTML = `<span class="tab-icon-wrap"><span class="tab-icon"></span></span><span class="tab-label">${escapeHtml(label)}</span>`;
       btn.addEventListener('click', () => switchToSharedBoard(board.boardKey, board.ownerId));
       nav.appendChild(btn);
@@ -6838,7 +6838,7 @@ function renderSentinelSharedStrip(host){
   entries.forEach(b => {
     const item = document.createElement('div');
     item.className = 'sp-item';
-    const label = (b.data && b.data.title) || b.boardKey;
+    const label = b.boardKey;
     const n = (b.data && Array.isArray(b.data.rows)) ? b.data.rows.length : 0;
     item.innerHTML = `<span class="sp-label">${escapeHtml(label)}</span><span class="sp-list">${n} item${n===1?'':'s'}</span>`;
     item.addEventListener('click', () => switchToSharedBoard(b.boardKey, b.ownerId));
