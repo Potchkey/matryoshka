@@ -3780,6 +3780,7 @@ function switchToSharedBoard(boardKey, ownerId) {
   _injectSharedBoardIntoState(boardKey, ownerId);
   state.activeSharedBoard = { boardKey, ownerId, tabKey };
   state.activeTab = tabKey;
+  state.viewingMatryoshkaHome = false;
   save();
   render();
 }
