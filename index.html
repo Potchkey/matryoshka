@@ -3788,7 +3788,7 @@ function switchToSharedBoardFull(ownerId) {
   const meta = _sharedBoardsMeta[ownerId];
   const boardInternalId = meta?.boardInternalId;
   const lists = Object.values(_sharedWithMe).filter(b =>
-    b.ownerId === ownerId && (!boardInternalId || b.boardInternalId === boardInternalId)
+    b.ownerId === ownerId && b.boardInternalId === boardInternalId
   );
   if (!lists.length) return;
   for (const list of lists) _injectSharedBoardIntoState(list.boardKey, list.ownerId);
@@ -6231,7 +6231,7 @@ function renderTabs(){
     const ownerId = state.activeSharedBoardFull;
     const boardInternalId = _sharedBoardsMeta[ownerId]?.boardInternalId;
     const lists = Object.values(_sharedWithMe).filter(b =>
-      b.ownerId === ownerId && (!boardInternalId || b.boardInternalId === boardInternalId)
+      b.ownerId === ownerId && b.boardInternalId === boardInternalId
     );
     lists.forEach(board => {
       const tabKey = '__sb_' + board.boardKey + '_' + board.ownerId.slice(0, 8);
