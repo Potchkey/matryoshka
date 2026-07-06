@@ -6255,7 +6255,7 @@ function renderTabs(){
   // Single shared list view — show all per-list shared entries in sidebar
   if (state.activeSharedBoard && !state.activeSharedBoardFull) {
     if (sidebarTitle) sidebarTitle.textContent = 'Shared with me';
-    const perListEntries = Object.values(_sharedWithMe).filter(b => b.boardInternalId === undefined);
+    const perListEntries = Object.values(_sharedWithMe).filter(b => b.boardInternalId == null);
     perListEntries.forEach(board => {
       const tabKey = '__sb_' + board.boardKey + '_' + board.ownerId.slice(0, 8);
       const btn = document.createElement('button');
@@ -6292,7 +6292,7 @@ function renderTabs(){
 
   // SHARED WITH ME section — individual per-list invites, Sentinel only
   const sharedEntries = state.viewingMatryoshkaHome
-    ? Object.values(_sharedWithMe).filter(b => b.boardInternalId === undefined)
+    ? Object.values(_sharedWithMe).filter(b => b.boardInternalId == null)
     : [];
   if (sharedEntries.length) {
     const sharedSep = document.createElement('div');
