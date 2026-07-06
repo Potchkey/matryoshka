@@ -1868,7 +1868,7 @@ async function bootAppForSession(session){
       const d = window._sharingDiag || {};
       let why;
       if (d.sharedBoardsErr) why = 'The database blocked reading the shared board (row-level-security policy): ' + d.sharedBoardsErr;
-      else if (!d.sharedBoardsCount) why = 'No shared board rows exist yet — the owner needs to open the board and click "Share board" again to publish it (and the shared_boards table/policies must be set up).';
+      else if (!d.sharedBoardsCount) why = 'No shared board rows exist yet — the owner needs to open the board and click "Share board" again to publish it (and the shared_lists table/policies must be set up).';
       else why = 'The shared data loaded but did not match this invite.';
       alert('You joined the shared board, but its contents could not be loaded.\n\n' + why + '\n\n(Diagnostic: ' + JSON.stringify(d) + ')');
     } else {
@@ -3358,14 +3358,14 @@ function subscribeRealtime(){
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BOARD SHARING — invite-based per-board real-time collaboration
-// Tables: shared_boards (board data per owner), board_invites (access tokens)
+// Tables: shared_lists (board data per owner), board_invites (access tokens)
 //
 // REQUIRED Supabase setup (run once in the SQL Editor). Sharing silently fails —
 // blank screen for the invitee, nothing added — if these tables/policies are
 // missing, because the owner can't write the shared copy and the invitee can't
 // read it. Tokens are unguessable, so we allow authenticated lookup by token.
 //
-//   create table if not exists shared_boards (
+//   create table if not exists shared_lists (
 //     board_key  text not null,
 //     owner_id   uuid not null references auth.users(id) on delete cascade,
 //     data       jsonb not null default '{}',
@@ -3382,23 +3382,23 @@ function subscribeRealtime(){
 //     accepted_at     timestamptz,
 //     label           text
 //   );
-//   alter table shared_boards  enable row level security;
+//   alter table shared_lists  enable row level security;
 //   alter table board_invites  enable row level security;
 //   -- owner: full control of their own rows
-//   create policy sb_owner  on shared_boards for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+//   create policy sb_owner  on shared_lists for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 //   create policy bi_owner  on board_invites for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 //   -- invitee: look up an invite by token, and accept it (claim themselves)
 //   create policy bi_read   on board_invites for select using (true);
 //   create policy bi_accept on board_invites for update using (invitee_user_id is null or invitee_user_id = auth.uid()) with check (invitee_user_id = auth.uid());
 //   -- invitee: read/update the shared board data once they hold an accepted invite
-//   create policy sb_shared_read on shared_boards for select using (
-//     exists (select 1 from board_invites bi where bi.owner_id = shared_boards.owner_id
+//   create policy sb_shared_read on shared_lists for select using (
+//     exists (select 1 from board_invites bi where bi.owner_id = shared_lists.owner_id
 //       and bi.invitee_user_id = auth.uid()
-//       and (bi.board_key = shared_boards.board_key or bi.board_key = '__board__')));
-//   create policy sb_shared_edit on shared_boards for update using (
-//     exists (select 1 from board_invites bi where bi.owner_id = shared_boards.owner_id
+//       and (bi.board_key = shared_lists.board_key or bi.board_key = '__board__')));
+//   create policy sb_shared_edit on shared_lists for update using (
+//     exists (select 1 from board_invites bi where bi.owner_id = shared_lists.owner_id
 //       and bi.invitee_user_id = auth.uid()
-//       and (bi.board_key = shared_boards.board_key or bi.board_key = '__board__')));
+//       and (bi.board_key = shared_lists.board_key or bi.board_key = '__board__')));
 // ═══════════════════════════════════════════════════════════════════════════
 
 let _sharedWithMe = {};    // key = 'boardKey:ownerId' → { boardKey, ownerId, data, updatedAt }
@@ -3496,9 +3496,9 @@ async function loadSharingState() {
     if (acceptedInvites && acceptedInvites.length) {
       for (const inv of acceptedInvites) {
         if (!inv.list_key || inv.list_key === '__board__') {
-          // Board-level invite — fetch only this board's lists from shared_boards
+          // Board-level invite — fetch only this board's lists from shared_lists
           _sharedBoardsMeta[inv.owner_id] = { title: inv.board_id || inv.owner_id.slice(0, 8) };
-          let sbQuery = supa.from('shared_boards')
+          let sbQuery = supa.from('shared_lists')
             .select('board_key, owner_id, data, updated_at')
             .eq('owner_id', inv.owner_id);
           if (inv.board_internal_id) sbQuery = sbQuery.eq('board_id', inv.board_internal_id);
@@ -3510,8 +3510,8 @@ async function loadSharingState() {
             };
           }
         } else {
-          // Per-list invite — fetch just that one shared_boards row
-          const { data: b } = await supa.from('shared_boards')
+          // Per-list invite — fetch just that one shared_lists row
+          const { data: b } = await supa.from('shared_lists')
             .select('board_key, owner_id, data, updated_at')
             .eq('board_key', inv.list_key)
             .eq('owner_id', inv.owner_id)
@@ -3537,7 +3537,7 @@ async function pushSharedBoard(boardKey) {
   const userId = window.__lgAuth.user?.id;
   if (!userId) return;
   try {
-    await supa.from('shared_boards').upsert({
+    await supa.from('shared_lists').upsert({
       board_key: boardKey, owner_id: userId, board_id: state.activeBoardId,
       data: _extractBoardData(boardKey),
       updated_at: new Date().toISOString(),
@@ -3548,7 +3548,7 @@ async function pushSharedBoard(boardKey) {
 async function pushCollaboratorEdit(boardKey, ownerId, data) {
   if (!supa) return;
   try {
-    await supa.from('shared_boards').update({
+    await supa.from('shared_lists').update({
       data: data, updated_at: new Date().toISOString(),
     }).eq('board_key', boardKey).eq('owner_id', ownerId);
   } catch(e) { console.warn('pushCollaboratorEdit failed', e); }
@@ -3566,13 +3566,13 @@ async function createBoardInvite() {
   if (!userId || !supa) { console.error('createBoardInvite: no userId or supa', {userId, supa: !!supa}); return null; }
   const boardId = state.activeBoardId;
   try {
-    // Push all lists belonging to this board to shared_boards
+    // Push all lists belonging to this board to shared_lists
     const boardData = (boardId === state.activeBoardId)
       ? state
       : (state.boards[boardId] ? Object.assign({}, state, state.boards[boardId].data) : state);
     let pushErr = null;
     for (const key of (boardData.boardOrder || [])) {
-      const { error: upErr } = await supa.from('shared_boards').upsert({
+      const { error: upErr } = await supa.from('shared_lists').upsert({
         board_key: key, owner_id: userId, board_id: boardId,
         data: _extractBoardData(key),
         updated_at: new Date().toISOString(),
@@ -3645,7 +3645,7 @@ async function createInvite(listKey) {
   if (!userId || !supa) return null;
   const boardId = state.activeBoardId;
   try {
-    await supa.from('shared_boards').upsert({
+    await supa.from('shared_lists').upsert({
       board_key: listKey, owner_id: userId,
       data: _extractBoardData(listKey),
       updated_at: new Date().toISOString(),
@@ -3701,8 +3701,8 @@ function subscribeSharedBoards() {
   if (!supa) return;
   const userId = window.__lgAuth.user?.id;
   if (!userId) return;
-  supa.channel('shared_boards_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_boards' }, payload => {
+  supa.channel('shared_lists_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_lists' }, payload => {
       if (!payload?.new) return;
       const { board_key, owner_id, data } = payload.new;
       if (!board_key || !owner_id) return;
@@ -4400,7 +4400,7 @@ function save(){
   if (!applyingRemote) pendingLocalChanges = true;
   debouncedCloudPush();
 
-  // If the user is editing a shared board tab, debounce-push changes back to shared_boards.
+  // If the user is editing a shared board tab, debounce-push changes back to shared_lists.
   if (!applyingRemote && state.activeSharedBoard && state.activeTab === state.activeSharedBoard.tabKey) {
     const { boardKey, ownerId } = state.activeSharedBoard;
     clearTimeout(window.__sbPushId);
@@ -4409,7 +4409,7 @@ function save(){
       pushCollaboratorEdit(boardKey, ownerId, data);
     }, 400);
   }
-  // Push to shared_boards if this list (or the whole board) has been shared.
+  // Push to shared_lists if this list (or the whole board) has been shared.
   // pushSharedBoard() no-ops internally if nothing is shared.
   if (!applyingRemote && !state.activeSharedBoard) {
     clearTimeout(window.__ownerSbPushId);
