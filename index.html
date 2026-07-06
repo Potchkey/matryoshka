@@ -6007,6 +6007,7 @@ function renderBoardSwitcher(){
   }
   btn.textContent = state.viewingMatryoshkaHome ? 'Sentinel'
     : state.activeSharedBoardFull ? ((_sharedBoardsMeta[state.activeSharedBoardFull]?.title) || 'Shared board')
+    : state.activeSharedBoard ? 'Shared with me'
     : (boardDisplayTitle(state.activeBoardId) || 'Untitled board');
   // Breadcrumb: Sentinel › [ancestor boards] › (current board is the switcher itself).
   if(crumbs){
