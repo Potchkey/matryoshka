@@ -3753,7 +3753,7 @@ function _injectSharedBoardIntoState(boardKey, ownerId) {
   state.userColumns = state.userColumns || {};
   state.colOrder    = state.colOrder || {};
   state.rows[tabKey]        = JSON.parse(JSON.stringify(d.rows || []));
-  state.titles[tabKey]      = d.title || boardKey;
+  state.titles[tabKey]      = boardKey;
   state.headers[tabKey]     = JSON.parse(JSON.stringify(d.headers || {}));
   state.colWidths[tabKey]   = JSON.parse(JSON.stringify(d.colWidths || {}));
   state.userColumns[tabKey] = JSON.parse(JSON.stringify(d.userColumns || []));
