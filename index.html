@@ -3499,26 +3499,26 @@ async function loadSharingState() {
           // Board-level invite — fetch only this board's lists from shared_lists
           _sharedBoardsMeta[inv.owner_id] = { title: inv.board_id || inv.owner_id.slice(0, 8) };
           let sbQuery = supa.from('shared_lists')
-            .select('board_key, owner_id, data, updated_at')
+            .select('list_key, owner_id, data, updated_at')
             .eq('owner_id', inv.owner_id);
           if (inv.board_internal_id) sbQuery = sbQuery.eq('board_id', inv.board_internal_id);
           const { data: rows } = await sbQuery;
           for (const b of (rows || [])) {
-            _sharedWithMe[_sbKey(b.board_key, b.owner_id)] = {
-              boardKey: b.board_key, ownerId: b.owner_id,
+            _sharedWithMe[_sbKey(b.list_key, b.owner_id)] = {
+              boardKey: b.list_key, ownerId: b.owner_id,
               data: b.data || {}, updatedAt: b.updated_at,
             };
           }
         } else {
           // Per-list invite — fetch just that one shared_lists row
           const { data: b } = await supa.from('shared_lists')
-            .select('board_key, owner_id, data, updated_at')
-            .eq('board_key', inv.list_key)
+            .select('list_key, owner_id, data, updated_at')
+            .eq('list_key', inv.list_key)
             .eq('owner_id', inv.owner_id)
             .single();
           if (b) {
-            _sharedWithMe[_sbKey(b.board_key, b.owner_id)] = {
-              boardKey: b.board_key, ownerId: b.owner_id,
+            _sharedWithMe[_sbKey(b.list_key, b.owner_id)] = {
+              boardKey: b.list_key, ownerId: b.owner_id,
               data: b.data || {}, updatedAt: b.updated_at,
             };
           }
@@ -3538,10 +3538,10 @@ async function pushSharedBoard(boardKey) {
   if (!userId) return;
   try {
     await supa.from('shared_lists').upsert({
-      board_key: boardKey, owner_id: userId, board_id: state.activeBoardId,
+      list_key: boardKey, owner_id: userId, board_id: state.activeBoardId,
       data: _extractBoardData(boardKey),
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'board_key,owner_id' });
+    }, { onConflict: 'list_key,owner_id' });
   } catch(e) { console.warn('pushSharedBoard failed', e); }
 }
 
@@ -3550,7 +3550,7 @@ async function pushCollaboratorEdit(boardKey, ownerId, data) {
   try {
     await supa.from('shared_lists').update({
       data: data, updated_at: new Date().toISOString(),
-    }).eq('board_key', boardKey).eq('owner_id', ownerId);
+    }).eq('list_key', boardKey).eq('owner_id', ownerId);
   } catch(e) { console.warn('pushCollaboratorEdit failed', e); }
 }
 
@@ -3573,10 +3573,10 @@ async function createBoardInvite() {
     let pushErr = null;
     for (const key of (boardData.boardOrder || [])) {
       const { error: upErr } = await supa.from('shared_lists').upsert({
-        board_key: key, owner_id: userId, board_id: boardId,
+        list_key: key, owner_id: userId, board_id: boardId,
         data: _extractBoardData(key),
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'board_key,owner_id' });
+      }, { onConflict: 'list_key,owner_id' });
       if (upErr && !pushErr) pushErr = upErr;
       else _mySharedKeys.add(key);
     }
@@ -3646,10 +3646,10 @@ async function createInvite(listKey) {
   const boardId = state.activeBoardId;
   try {
     await supa.from('shared_lists').upsert({
-      board_key: listKey, owner_id: userId,
+      list_key: listKey, owner_id: userId,
       data: _extractBoardData(listKey),
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'board_key,owner_id' });
+    }, { onConflict: 'list_key,owner_id' });
     const token = _genToken();
     const { data, error } = await supa.from('board_invites')
       .insert({ board_id: boardId, list_key: listKey, owner_id: userId, token })
@@ -3704,19 +3704,19 @@ function subscribeSharedBoards() {
   supa.channel('shared_lists_changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'shared_lists' }, payload => {
       if (!payload?.new) return;
-      const { board_key, owner_id, data } = payload.new;
-      if (!board_key || !owner_id) return;
+      const { list_key, owner_id, data } = payload.new;
+      if (!list_key || !owner_id) return;
       if (owner_id === userId) {
         // A collaborator edited one of my boards — apply to my local state if not editing
-        if (!isUserCurrentlyEditing()) _applyCollabUpdateToOwner(board_key, data);
+        if (!isUserCurrentlyEditing()) _applyCollabUpdateToOwner(list_key, data);
       } else {
         // A board shared with me was updated — refresh cache and re-render if viewing
-        const key = _sbKey(board_key, owner_id);
+        const key = _sbKey(list_key, owner_id);
         if (_sharedWithMe[key]) {
           _sharedWithMe[key].data = data;
-          const tabKey = '__sb_' + board_key + '_' + owner_id.slice(0,8);
+          const tabKey = '__sb_' + list_key + '_' + owner_id.slice(0,8);
           if (state.activeTab === tabKey && !isUserCurrentlyEditing()) {
-            _injectSharedBoardIntoState(board_key, owner_id);
+            _injectSharedBoardIntoState(list_key, owner_id);
             render();
           }
         }
