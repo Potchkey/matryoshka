@@ -6136,9 +6136,9 @@ function openBoardMenu(anchor){
     });
     menu.appendChild(item);
   });
-  // Shared with me section
+  // Shared with me section — only visible from Sentinel
   const sharedOwners = Object.keys(_sharedBoardsMeta);
-  if (sharedOwners.length) {
+  if (sharedOwners.length && state.viewingMatryoshkaHome) {
     const sharedSep = document.createElement('div');
     sharedSep.className = 'board-menu-sep';
     menu.appendChild(sharedSep);
