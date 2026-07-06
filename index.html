@@ -3456,25 +3456,52 @@ async function loadSharingState() {
   if (!supa || !window.__lgAuth.user) return;
   const userId = window.__lgAuth.user.id;
   try {
-    const inv = await supa.from('board_invites').select('board_key').eq('owner_id', userId);
-    _mySharedKeys = new Set((inv.data || []).map(r => r.board_key));
+    const { data: myInvites, error: myInvitesErr } = await supa.from('board_invites')
+      .select('list_key, board_id')
+      .eq('owner_id', userId);
+    _mySharedKeys = new Set((myInvites || []).map(r => r.list_key || r.board_id));
 
-    const acc = await supa.from('shared_boards')
-      .select('board_key, owner_id, data, updated_at')
-      .neq('owner_id', userId);
-    // Diagnostic snapshot so an invitee who can't load a board can report the
-    // exact cause (RLS-denied vs. simply no rows written by the owner yet).
+    // Pull accepted invites where I am the invitee
+    const { data: acceptedInvites, error: accErr } = await supa.from('board_invites')
+      .select('board_id, list_key, owner_id')
+      .eq('invitee_user_id', userId)
+      .not('accepted_at', 'is', null);
+
     window._sharingDiag = {
-      invitesErr: inv.error ? (inv.error.message || inv.error.code) : null,
-      sharedBoardsErr: acc.error ? (acc.error.message || acc.error.code) : null,
-      sharedBoardsCount: (acc.data || []).length,
+      invitesErr: myInvitesErr ? (myInvitesErr.message || myInvitesErr.code) : null,
+      acceptedInvitesErr: accErr ? (accErr.message || accErr.code) : null,
+      acceptedInvitesCount: (acceptedInvites || []).length,
     };
+
     _sharedWithMe = {};
-    for (const b of (acc.data || [])) {
-      _sharedWithMe[_sbKey(b.board_key, b.owner_id)] = {
-        boardKey: b.board_key, ownerId: b.owner_id,
-        data: b.data || {}, updatedAt: b.updated_at,
-      };
+    if (acceptedInvites && acceptedInvites.length) {
+      for (const inv of acceptedInvites) {
+        if (!inv.list_key) {
+          // Board-level invite — fetch all lists this owner has pushed to shared_boards
+          const { data: rows } = await supa.from('shared_boards')
+            .select('board_key, owner_id, data, updated_at')
+            .eq('owner_id', inv.owner_id);
+          for (const b of (rows || [])) {
+            _sharedWithMe[_sbKey(b.board_key, b.owner_id)] = {
+              boardKey: b.board_key, ownerId: b.owner_id,
+              data: b.data || {}, updatedAt: b.updated_at,
+            };
+          }
+        } else {
+          // Per-list invite — fetch just that one shared_boards row
+          const { data: b } = await supa.from('shared_boards')
+            .select('board_key, owner_id, data, updated_at')
+            .eq('board_key', inv.list_key)
+            .eq('owner_id', inv.owner_id)
+            .single();
+          if (b) {
+            _sharedWithMe[_sbKey(b.board_key, b.owner_id)] = {
+              boardKey: b.board_key, ownerId: b.owner_id,
+              data: b.data || {}, updatedAt: b.updated_at,
+            };
+          }
+        }
+      }
     }
     renderTabs();
   } catch(e) { window._sharingDiag = { threw: String(e) }; console.warn('loadSharingState failed', e); }
@@ -3513,36 +3540,35 @@ async function createBoardInvite() {
       if (session?.user) { window.__lgAuth.user = session.user; userId = session.user.id; }
     } catch(_) {}
   }
-  if (!userId || !supa) return null;
+  if (!userId || !supa) { console.error('createBoardInvite: no userId or supa', {userId, supa: !!supa}); return null; }
+  const boardId = state.activeBoardId;
   try {
-    // Push every current list to shared_boards so collaborators can read them.
-    // Capture the first write error — if the DB blocks this (RLS), the invitee
-    // would get a blank board, so surface it to the owner instead of failing silently.
+    // Push all lists belonging to this board to shared_boards
+    const boardData = (boardId === state.activeBoardId)
+      ? state
+      : (state.boards[boardId] ? Object.assign({}, state, state.boards[boardId].data) : state);
     let pushErr = null;
-    for (const key of (state.boardOrder || [])) {
+    for (const key of (boardData.boardOrder || [])) {
       const { error: upErr } = await supa.from('shared_boards').upsert({
         board_key: key, owner_id: userId,
         data: _extractBoardData(key),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'board_key,owner_id' });
       if (upErr && !pushErr) pushErr = upErr;
-      _mySharedKeys.add(key);
+      else _mySharedKeys.add(key);
     }
-    _mySharedKeys.add('__board__');
     if (pushErr) { console.warn('createBoardInvite: publish blocked', pushErr); return { error: pushErr }; }
-    // Reuse an UNCLAIMED board-level token if one exists; otherwise mint a fresh
-    // one. Each token can only be accepted by a single person (RLS), so once a
-    // link has been used we must hand out a new link for the next collaborator —
-    // reusing an already-accepted token silently gives the next person no access.
+    // Reuse an UNCLAIMED board-level token if one exists; otherwise mint a fresh one.
+    // Each token is single-use — once accepted, a new link is needed for the next person.
     const { data: existing } = await supa.from('board_invites')
-      .select('token').eq('board_key', '__board__').eq('owner_id', userId)
-      .is('accepted_at', null).limit(1).maybeSingle();
+      .select('token').eq('board_id', boardId).eq('owner_id', userId)
+      .is('list_key', null).is('accepted_at', null).limit(1).maybeSingle();
     if (existing?.token) return `${location.origin}${location.pathname}?invite=${existing.token}`;
     const token = _genToken();
     const { data, error } = await supa.from('board_invites')
-      .insert({ board_key: '__board__', owner_id: userId, token })
+      .insert({ board_id: boardId, list_key: null, owner_id: userId, token })
       .select('token').single();
-    if (error || !data) { console.warn('createBoardInvite error', error); return { error }; }
+    if (error || !data) { console.error('createBoardInvite: insert failed', error); return { error }; }
     return `${location.origin}${location.pathname}?invite=${data.token}`;
   } catch(e) { console.warn('createBoardInvite threw', e); return { error: e }; }
 }
@@ -3570,8 +3596,8 @@ async function openBoardShareModal() {
 
   const userId = window.__lgAuth.user?.id;
   const { data: collabs } = await supa.from('board_invites')
-    .select('id, invitee_user_id, invited_at, accepted_at, label')
-    .eq('board_key', '__board__').eq('owner_id', userId)
+    .select('id, invitee_user_id, invited_at, accepted_at, label, board_id, list_key')
+    .eq('board_id', boardId).is('list_key', null).eq('owner_id', userId)
     .order('invited_at', { ascending: false });
   const list = collabs || [];
   if (!list.length) {
@@ -3588,21 +3614,22 @@ async function openBoardShareModal() {
   }
 }
 
-async function createInvite(boardKey) {
+async function createInvite(listKey) {
   const userId = window.__lgAuth.user?.id;
   if (!userId || !supa) return null;
+  const boardId = state.activeBoardId;
   try {
     await supa.from('shared_boards').upsert({
-      board_key: boardKey, owner_id: userId,
-      data: _extractBoardData(boardKey),
+      board_key: listKey, owner_id: userId,
+      data: _extractBoardData(listKey),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'board_key,owner_id' });
     const token = _genToken();
     const { data, error } = await supa.from('board_invites')
-      .insert({ board_key: boardKey, owner_id: userId, token })
+      .insert({ board_id: boardId, list_key: listKey, owner_id: userId, token })
       .select('token').single();
     if (error || !data) { console.warn('createInvite error', error); return null; }
-    _mySharedKeys.add(boardKey);
+    _mySharedKeys.add(listKey);
     return `${location.origin}${location.pathname}?invite=${data.token}`;
   } catch(e) { console.warn('createInvite threw', e); return null; }
 }
@@ -3610,9 +3637,11 @@ async function createInvite(boardKey) {
 async function getBoardCollaborators(boardKey) {
   const userId = window.__lgAuth.user?.id;
   if (!userId || !supa) return [];
+  // boardKey may be a listKey or a boardId — query both fields
   const { data } = await supa.from('board_invites')
-    .select('id, token, invitee_user_id, invited_at, accepted_at, label')
-    .eq('board_key', boardKey).eq('owner_id', userId)
+    .select('id, token, invitee_user_id, invited_at, accepted_at, label, board_id, list_key')
+    .eq('owner_id', userId)
+    .or(`list_key.eq.${boardKey},and(board_id.eq.${boardKey},list_key.is.null)`)
     .order('invited_at', { ascending: false });
   return data || [];
 }
@@ -3628,9 +3657,9 @@ async function redeemInviteToken(token) {
   const userId = window.__lgAuth.user.id;
   try {
     const { data: invite, error } = await supa.from('board_invites')
-      .select('id, board_key, owner_id, invitee_user_id, accepted_at')
+      .select('id, board_id, list_key, owner_id, invitee_user_id, accepted_at')
       .eq('token', token).single();
-    if (error || !invite) return false;
+    if (error || !invite) { console.warn('redeemInviteToken: invite not found', error); return false; }
     if (!invite.accepted_at) {
       const { error: upErr } = await supa.from('board_invites')
         .update({ invitee_user_id: userId, accepted_at: new Date().toISOString() })
