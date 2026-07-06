@@ -6264,8 +6264,10 @@ function renderTabs(){
     if(archKey) nav.appendChild(buildTabBtn(archKey, true));
   });
 
-  // SHARED WITH ME section — individual lists for per-list invites only
-  const sharedEntries = Object.values(_sharedWithMe).filter(b => !_sharedBoardsMeta[b.ownerId]);
+  // SHARED WITH ME section — individual per-list invites, Sentinel only
+  const sharedEntries = state.viewingMatryoshkaHome
+    ? Object.values(_sharedWithMe).filter(b => !_sharedBoardsMeta[b.ownerId])
+    : [];
   if (sharedEntries.length) {
     const sharedSep = document.createElement('div');
     sharedSep.className = 'sidebar-group sidebar-shared';
