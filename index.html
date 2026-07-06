@@ -6276,7 +6276,7 @@ function renderTabs(){
 
   // SHARED WITH ME section — individual per-list invites, Sentinel only
   const sharedEntries = state.viewingMatryoshkaHome
-    ? Object.values(_sharedWithMe).filter(b => !_sharedBoardsMeta[b.ownerId])
+    ? Object.values(_sharedWithMe).filter(b => b.boardInternalId === undefined)
     : [];
   if (sharedEntries.length) {
     const sharedSep = document.createElement('div');
