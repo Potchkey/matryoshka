@@ -3476,7 +3476,7 @@ async function loadSharingState() {
     _sharedWithMe = {};
     if (acceptedInvites && acceptedInvites.length) {
       for (const inv of acceptedInvites) {
-        if (inv.list_key === '__board__') {
+        if (!inv.list_key || inv.list_key === '__board__') {
           // Board-level invite — fetch all lists this owner has pushed to shared_boards
           const { data: rows } = await supa.from('shared_boards')
             .select('board_key, owner_id, data, updated_at')
