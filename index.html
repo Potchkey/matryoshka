@@ -3404,6 +3404,7 @@ function subscribeRealtime(){
 let _sharedWithMe = {};    // key = 'boardKey:ownerId' → { boardKey, ownerId, data, updatedAt }
 let _sharedBoardsMeta = {}; // key = ownerId → { title } (from board_invites.board_id)
 let _mySharedKeys = new Set(); // board keys I own that have at least one accepted invite
+let _mySharedBoardIds = new Set(); // internal boardIds (e.g. 'b_yiaiz81') that have a full-board invite
 // Whether a given list (or the whole board) is currently shared with anyone.
 function isListShared(listKey){ return _mySharedKeys.has(listKey) || _mySharedKeys.has('__board__'); }
 function isRowShared(listKey, rowId){ return _mySharedKeys.has('__row__:' + listKey + ':' + rowId); }
@@ -3458,13 +3459,29 @@ async function loadSharingState() {
   const userId = window.__lgAuth.user.id;
   try {
     const { data: myInvites, error: myInvitesErr } = await supa.from('board_invites')
-      .select('list_key, board_id')
+      .select('list_key, board_id, board_internal_id')
       .eq('owner_id', userId);
-    _mySharedKeys = new Set((myInvites || []).map(r => r.list_key || r.board_id));
+    _mySharedKeys = new Set();
+    _mySharedBoardIds = new Set();
+    for (const r of (myInvites || [])) {
+      if (!r.list_key || r.list_key === '__board__') {
+        _mySharedKeys.add('__board__');
+        // Map board title back to internal boardId so pushSharedBoard can scope correctly
+        if (r.board_internal_id) {
+          _mySharedBoardIds.add(r.board_internal_id);
+        } else {
+          // Fallback for old rows: match by title
+          const matchId = Object.entries(state.boards || {}).find(([, b]) => b.title === r.board_id)?.[0];
+          if (matchId) _mySharedBoardIds.add(matchId);
+        }
+      } else {
+        _mySharedKeys.add(r.list_key);
+      }
+    }
 
     // Pull accepted invites where I am the invitee
     const { data: acceptedInvites, error: accErr } = await supa.from('board_invites')
-      .select('board_id, list_key, owner_id')
+      .select('board_id, list_key, owner_id, board_internal_id')
       .eq('invitee_user_id', userId)
       .not('accepted_at', 'is', null);
 
@@ -3479,11 +3496,13 @@ async function loadSharingState() {
     if (acceptedInvites && acceptedInvites.length) {
       for (const inv of acceptedInvites) {
         if (!inv.list_key || inv.list_key === '__board__') {
-          // Board-level invite — fetch all lists this owner has pushed to shared_boards
+          // Board-level invite — fetch only this board's lists from shared_boards
           _sharedBoardsMeta[inv.owner_id] = { title: inv.board_id || inv.owner_id.slice(0, 8) };
-          const { data: rows } = await supa.from('shared_boards')
+          let sbQuery = supa.from('shared_boards')
             .select('board_key, owner_id, data, updated_at')
             .eq('owner_id', inv.owner_id);
+          if (inv.board_internal_id) sbQuery = sbQuery.eq('board_id', inv.board_internal_id);
+          const { data: rows } = await sbQuery;
           for (const b of (rows || [])) {
             _sharedWithMe[_sbKey(b.board_key, b.owner_id)] = {
               boardKey: b.board_key, ownerId: b.owner_id,
@@ -3512,13 +3531,14 @@ async function loadSharingState() {
 
 async function pushSharedBoard(boardKey) {
   if (!supa) return;
-  // Push if this specific list is shared, or the whole board is shared
-  if (!_mySharedKeys.has(boardKey) && !_mySharedKeys.has('__board__')) return;
+  // Push if this specific list is shared, or the whole board is shared AND we're on the shared board
+  const boardLevelShared = _mySharedKeys.has('__board__') && _mySharedBoardIds.has(state.activeBoardId);
+  if (!_mySharedKeys.has(boardKey) && !boardLevelShared) return;
   const userId = window.__lgAuth.user?.id;
   if (!userId) return;
   try {
     await supa.from('shared_boards').upsert({
-      board_key: boardKey, owner_id: userId,
+      board_key: boardKey, owner_id: userId, board_id: state.activeBoardId,
       data: _extractBoardData(boardKey),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'board_key,owner_id' });
@@ -3553,7 +3573,7 @@ async function createBoardInvite() {
     let pushErr = null;
     for (const key of (boardData.boardOrder || [])) {
       const { error: upErr } = await supa.from('shared_boards').upsert({
-        board_key: key, owner_id: userId,
+        board_key: key, owner_id: userId, board_id: boardId,
         data: _extractBoardData(key),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'board_key,owner_id' });
@@ -3570,7 +3590,7 @@ async function createBoardInvite() {
     if (existing?.token) return `${location.origin}${location.pathname}?invite=${existing.token}`;
     const token = _genToken();
     const { data, error } = await supa.from('board_invites')
-      .insert({ board_id: boardTitle, list_key: '__board__', owner_id: userId, token })
+      .insert({ board_id: boardTitle, board_internal_id: boardId, list_key: '__board__', owner_id: userId, token })
       .select('token').single();
     if (error || !data) { console.error('createBoardInvite: insert failed', error); return { error }; }
     return `${location.origin}${location.pathname}?invite=${data.token}`;
