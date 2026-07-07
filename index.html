@@ -3744,9 +3744,10 @@ function _applyCollabUpdateToOwner(boardKey, newData) {
 function _injectSharedBoardIntoState(boardKey, ownerId) {
   const ref = _sbKey(boardKey, ownerId);
   const board = _sharedWithMe[ref];
-  if (!board) return;
+  if (!board) { console.log('[inject] no _sharedWithMe entry for', ref); return; }
   const tabKey = '__sb_' + boardKey + '_' + ownerId.slice(0,8);
   const d = board.data;
+  console.log('[inject]', boardKey, '→ rows:', (d.rows||[]).length, '| cols:', (d.columns||[]).length, '| tabKey:', tabKey);
   state.rows        = state.rows || {};
   state.titles      = state.titles || {};
   state.headers     = state.headers || {};
