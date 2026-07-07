@@ -3439,7 +3439,7 @@ function _extractBoardData(tabKey) {
       // Full resolved column set so the collaborator can render the rows even
       // though they don't have this list's base schema. Without this the shared
       // board shows up blank (no columns = nothing to display the rows in).
-      columns:     (typeof getColumns === 'function' ? getColumns(listKey) : []).map(c => ({...c})),
+      columns:     (typeof getColumns === 'function' && SCHEMAS[listKey] ? getColumns(listKey) : []).map(c => ({...c})),
       baseListKey: listKey,
     };
   }
@@ -3450,7 +3450,7 @@ function _extractBoardData(tabKey) {
     colWidths:   (state.colWidths   || {})[tabKey] || {},
     userColumns: (state.userColumns || {})[tabKey] || [],
     colOrder:    (state.colOrder    || {})[tabKey] || [],
-    columns:     (typeof getColumns === 'function' ? getColumns(tabKey) : []).map(c => ({...c})),
+    columns:     (typeof getColumns === 'function' && SCHEMAS[tabKey] ? getColumns(tabKey) : []).map(c => ({...c})),
   };
 }
 
