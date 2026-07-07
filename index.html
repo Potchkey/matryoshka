@@ -6352,7 +6352,9 @@ function renderSection(){
     state.activeTab = 'home';
   }
   // If activeSharedBoard is set but the SCHEMAS entry is missing (e.g. after reload), re-inject.
-  if (state.activeSharedBoard && state.activeTab === state.activeSharedBoard.tabKey && !SCHEMAS[state.activeTab]) {
+  // Always re-inject shared board data — state.rows is wiped by restoreBoardFields
+  // when the user switches boards, so SCHEMAS presence alone isn't enough to detect stale rows.
+  if (state.activeSharedBoard && state.activeTab === state.activeSharedBoard.tabKey) {
     _injectSharedBoardIntoState(state.activeSharedBoard.boardKey, state.activeSharedBoard.ownerId);
   }
   const tab = state.activeTab;
